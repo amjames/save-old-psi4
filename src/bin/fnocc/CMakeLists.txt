@@ -13,7 +13,7 @@ list(SORT headers_list)
 
 set(sources_list "")
 # List of sources
-list(APPEND sources_list frozen_natural_orbitals.cc triples.cc ccsd.cc lowmemory_triples.cc sortintegrals.cc coupled_pair.cc mp2.cc blas.cc df_cc_residual.cc df_t1_transformation.cc df_ccsd.cc opdm.cc quadratic.cc diis.cc df_scs.cc local_triples.cc fnocc.cc linear.cc )
+list(APPEND sources_list frozen_natural_orbitals.cc triples.cc ccsd.cc lowmemory_triples.cc sortintegrals.cc coupled_pair.cc mp2.cc blas.cc df_cc_residual.cc df_t1_transformation.cc df_ccsd.cc opdm.cc quadratic.cc diis.cc df_scs.cc fnocc.cc linear.cc )
 
 # If you want to remove some sources specify them explictly here
 if(DEVELOPMENT_CODE)
@@ -22,10 +22,6 @@ else()
    list(REMOVE_ITEM sources_list "")
 endif()
 
-# Write list of files to be passed to cloc for counting lines of code.
-# Only files that are actually compiled are counted.
-set(to_count "${sources_list}" "${headers_list}")
-write_to_cloc_list("${to_count}")
 
 # Build static library
 add_library(fnocc STATIC ${sources_list})

@@ -121,7 +121,6 @@ namespace dcft { PsiReturnType dcft(Options&); }
 namespace lmp2 { PsiReturnType lmp2(Options&); }
 namespace mcscf { PsiReturnType mcscf(Options&); }
 namespace psimrcc { PsiReturnType psimrcc(Options&); }
-namespace transqt { PsiReturnType transqt(Options&); }
 namespace transqt2 { PsiReturnType transqt2(Options&); }
 namespace ccsort { PsiReturnType ccsort(Options&); }
 //    namespace lmp2       { PsiReturnType lmp2(Options&);      }
@@ -475,13 +474,6 @@ double py_psi_fisapt()
     }
     else
         return 0.0;
-}
-
-double py_psi_transqt()
-{
-    py_psi_prepare_options_for_module("TRANSQT");
-    transqt::transqt(Process::environment.options);
-    return 0.0;
 }
 
 double py_psi_transqt2()
@@ -1270,7 +1262,7 @@ void py_psi_print_variable_map()
 {
     int largest_key = 0;
     for (std::map<string, double>::iterator it = Process::environment.globals.begin();
-         it != Process::environment.globals.end(); it++) {
+         it != Process::environment.globals.end(); ++it) {
         if (it->first.size() > largest_key)
             largest_key = it->first.size();
     }
@@ -1279,7 +1271,7 @@ void py_psi_print_variable_map()
     std::stringstream line;
     std::string first_tmp;
     for (std::map<string, double>::iterator it = Process::environment.globals.begin();
-         it != Process::environment.globals.end(); it++) {
+         it != Process::environment.globals.end(); ++it) {
         first_tmp = "\"" + it->first + "\"";
         line << "  " << std::left << std::setw(largest_key) << first_tmp << " => " << std::setw(20) << std::right <<
         std::fixed << std::setprecision(12) << it->second << std::endl;
@@ -1663,7 +1655,7 @@ BOOST_PYTHON_MODULE (psi4)
     def("fisapt", py_psi_fisapt, "Runs the functional-group intramolecular symmetry adapted perturbation theory code.");
     def("psimrcc", py_psi_psimrcc, "Runs the multireference coupled cluster code.");
     def("optking", py_psi_optking, "Runs the geometry optimization / frequency analysis code.");
-    def("transqt", py_psi_transqt, "Runs the (deprecated) transformation code.");
+//    def("transqt", py_psi_transqt, "Runs the (deprecated) transformation code.");
     def("transqt2", py_psi_transqt2, "Runs the (deprecated) transformation code.");
     def("ccsort", py_psi_ccsort, "Runs CCSORT, which reorders integrals for use in the coupled cluster codes.");
     def("ccenergy", py_psi_ccenergy, "Runs the coupled cluster energy code.");
