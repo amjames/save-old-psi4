@@ -643,6 +643,16 @@ void Matrix::set(const double * const * const sq)
     }
 }
 
+void Matrix::set(const double * const * const sq, int h)
+{
+  if(sq == NULL)
+    throw PSIEXCEPTION("Matrix::set: Set call with a NULL double** matrix");
+
+  for(int i=0; i < rowspi_[h]; i++)
+    for(int j=0; j < colspi_[h]; j++)
+      matrix_[h][i][j] = sq[i][j];
+}
+
 void Matrix::set_diagonal(const Vector * const vec)
 {
     if (symmetry_) {
@@ -1624,7 +1634,7 @@ int mat_schmidt_tol(double **C, double **S, int nrow, int ncol, double tolerance
 void Matrix::schmidt()
 {
     for (int h=0; h<nirrep(); ++h){
-        if ((rowspi(h) == 0) || (colspi(h) == 0)) continue;
+        if (!rowspi(h) || !colspi(h)) continue;
         psi::schmidt(matrix_[h], rowspi(h), colspi(h), "STUPID");
     }
 }

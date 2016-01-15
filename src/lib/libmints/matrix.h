@@ -358,6 +358,16 @@ public:
 
     /**
      * @{
+     * Copies sq to a specific irrep block of matrix_
+     *
+     * @param sq Double matrix to copy
+     * @param irrep irrep block into which we copy
+     */
+    void set(const double * const * const sq, int irrep);
+    /** @} */
+
+    /**
+     * @{
      * Copies sq to matrix_
      *
      * @param sq SimpleMatrix object to set this matrix to.
@@ -728,7 +738,7 @@ public:
      */
     void apply_symmetry(const SharedMatrix& a, const SharedMatrix& transformer);
 
-    /** Special function to transform a symmetry matrix into 
+    /** Special function to transform a symmetry matrix into
      *  a SimpleMatrix (no symmetry).
      *
      *  \param a symmetry matrix to transform

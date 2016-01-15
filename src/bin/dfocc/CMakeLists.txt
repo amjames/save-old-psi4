@@ -50,6 +50,8 @@ ccsd_opdm.cc              ccsd_tpdm.cc              ccd_pdm_3index_intr.cc
 ccd_opdm.cc               ccd_tpdm.cc               ccsd_triples.cc 
 mp3_W_intr.cc             t2_2nd_sc.cc              t2_2nd_gen.cc             
 omp3_opdm.cc              omp3_tpdm.cc              mp3_pdm_3index_intr.cc
+lccd_iterations.cc        olccd_tpdm.cc             lccd_W_intr.cc
+lccd_pdm_3index_intr.cc   lccd_t2_amps.cc
 )
 
 # If you want to remove some sources specify them explictly here
@@ -59,10 +61,6 @@ else()
    list(REMOVE_ITEM sources_list "")
 endif()
 
-# Write list of files to be passed to cloc for counting lines of code.
-# Only files that are actually compiled are counted.
-set(to_count "${sources_list}" "${headers_list}")
-write_to_cloc_list("${to_count}")
 
 # Build static library
 add_library(dfocc STATIC ${sources_list})

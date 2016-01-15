@@ -28,6 +28,7 @@ if(ENABLE_PCMSOLVER)
       -DENABLE_TIMER=OFF
       -DBUILD_STANDALONE=OFF
       -DENABLE_FORTRAN_API=OFF
+      -DENABLE_GENERIC=OFF
       -DZLIB_ROOT=${ZLIB_ROOT}
       -DPYTHON_INTERPRETER=${PYTHON_EXECUTABLE}
      )
@@ -64,16 +65,12 @@ else()
    list(REMOVE_ITEM sources_list "")
 endif()
 
-# Write list of files to be passed to cloc for counting lines of code.
-# Only files that are actually compiled are counted.
-set(to_count "${sources_list}" "${headers_list}")
-write_to_cloc_list("${to_count}")
 
 # Build static library
 add_library(psipcm STATIC ${sources_list})
 # Specify dependencies for the library (if any)
 add_dependencies(psipcm pcmsolver)
-list(APPEND PCMSOLVER_LIBS pcm getkw ${ZLIB_LIBRARIES} "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
+list(APPEND PCMSOLVER_LIBS pcm "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
 set_property(GLOBAL APPEND PROPERTY LIBLIST psipcm ${PCMSOLVER_LIBS})
 if(BUILD_CUSTOM_BOOST)
    add_dependencies(pcmsolver custom_boost)
