@@ -27,7 +27,7 @@
 
 /*! \file
     \ingroup CCHBAR
-    \brief Enter brief description of file here 
+    \brief Enter brief description of file here
 */
 #include <cstdio>
 #include <string>
@@ -43,7 +43,7 @@ namespace psi { namespace cchbar {
 /* Wabei(): Computes all contributions to the Wabei HBAR matrix
 ** elements, whose spin-orbital definition is:
 **
-** Wabei = <ab||ei> - Fme t(mi,ab) + t(i,f) <ab||ef> 
+** Wabei = <ab||ei> - Fme t(mi,ab) + t(i,f) <ab||ef>
 **            (I)         (II)             (IIIa)
 **   - P(ab) t(i,f) t(m,b) <am||ef> + 1/2 t(i,f) t(mn,ab) <mn||ef>
 **               (IIIb)                            (IIIc)
@@ -62,6 +62,7 @@ namespace psi { namespace cchbar {
 void Wabei_RHF(void);
 void Wabei_ROHF(void);
 void WABEI_UHF(void);
+void NEW_WABEI_UHF(void);
 void Wabei_UHF(void);
 void WAbEi_UHF(void);
 void WaBeI_UHF(void);
@@ -71,7 +72,7 @@ void Wabei_build(void)
   if(params.ref == 0) Wabei_RHF();
   else if(params.ref == 1) Wabei_ROHF();
   else if(params.ref == 2) {
-    WABEI_UHF();
+    NEW_WABEI_UHF();
     Wabei_UHF();
     WAbEi_UHF();
     WaBeI_UHF();
