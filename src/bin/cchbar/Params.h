@@ -27,7 +27,7 @@
 
 /*! \file
     \ingroup CCHBAR
-    \brief Enter brief description of file here 
+    \brief Enter brief description of file here
 */
 #include <string>
 
@@ -39,6 +39,11 @@ struct Params {
   int cachelev;
   int ref;
   int print;
+  /* temporary for testing only */
+  int new_Wabei_AAAA;
+  int new_Wabei_ABAB;
+  int new_Wabei_BABA;
+  int new_Wabei_BBBB;
   std::string wfn;
   int dertype;
   int Tamplitude;

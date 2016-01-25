@@ -79,6 +79,13 @@ void get_params(Options &options)
 //  params.wabei_lowdisk = 0;
 //  errcod = ip_boolean("WABEI_LOWDISK", &params.wabei_lowdisk, 0);
   params.wabei_lowdisk = options.get_bool("WABEI_LOWDISK");
+
+    /* Testing options for new UHF Wabei */
+    /* remove when complete */
+  params.new_Wabei_AAAA = options.get_bool("NEW_WABEI_AAAA");
+  params.new_Wabei_ABAB = options.get_bool("NEW_WABEI_ABAB");
+  params.new_Wabei_BABA = options.get_bool("NEW_WABEI_BABA");
+  params.new_Wabei_BBBB = options.get_bool("NEW_WABEI_BBBB");
 }
 
 }} // namespace psi::cchbar
