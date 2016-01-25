@@ -67,10 +67,29 @@ void Wabei_build(void)
   if(params.ref == 0) Wabei_RHF();
   else if(params.ref == 1) Wabei_ROHF();
   else if(params.ref == 2) {
-    NEW_WABEI_UHF();
-    Wabei_UHF();
-    WAbEi_UHF();
-    WaBeI_UHF();
+    if (params.new_Wabei_AAAA){
+      NEW_WABEI_UHF();
+    }else{
+      WABEI_UHF();
+    }
+    if (params.new_Wabei_ABAB){
+      /* NEW_WAbEi_UHF(); */
+      WAbEi_UHF();
+    }else{
+      WAbEi_UHF();
+    }
+    if (params.new_Wabei_BABA){
+      /* NEW_WaBeI_UHF(); */
+      WaBeI_UHF();
+    }else{
+      WaBeI_UHF();
+    }
+    if (params.new_Wabei_BBBB){
+      /* NEW_Wabei_UHF(); */
+      Wabei_UHF();
+    }else{
+      Wabei_UHF();
+    }
   }
 }
 
