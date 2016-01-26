@@ -324,13 +324,21 @@ void NEW_WABEI_UHF(void)
   int h, incore, core_total, rowtot, coltot, maxrows;
 
   /**** Term I ****/
+  if(params.print == 2) {
+    outfile->Printf( "\n\tF<AI|BC> -> Wabei...");
 
+  }
   /** W(EI,AB) <--- <EI||AB> **/
   global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 7, 21, 5, 1, "F <AI|BC>");
   global_dpd_->buf4_copy(&F, PSIF_CC_HBAR, "WEIAB");
   global_dpd_->buf4_close(&F);
 
   /**** Term II ****/
+
+  if(params.print == 2) {
+    outfile->Printf( "\n\t(New) FME*T2 -> Wabei...");
+  }
+
 
   /** W(EI,AB) <--- - F_ME t_MI^AB **/
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 0, 7, 2, 7, 0, "tIJAB");

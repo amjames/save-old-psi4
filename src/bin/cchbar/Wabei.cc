@@ -69,12 +69,15 @@ void WaBeI_UHF(void);
 
 void Wabei_build(void)
 {
+  outfile->Printf("in Wabei_build() ");
   if(params.ref == 0) Wabei_RHF();
   else if(params.ref == 1) Wabei_ROHF();
   else if(params.ref == 2) {
     if (params.new_Wabei_AAAA){
+      outfile->Printf("\n\t\tUsing new Wabei_AAAA_UHF");
       NEW_WABEI_UHF();
     }else{
+      outfile->Printf("\n\t\tusing old Wabei_AAAA_UHF");
       WABEI_UHF();
     }
     if (params.new_Wabei_ABAB){
