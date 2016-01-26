@@ -325,7 +325,7 @@ void NEW_WABEI_UHF(void)
 
   /**** Term I ****/
   if(params.print == 2) {
-    outfile->Printf( "\n\tF<AI|BC> -> Wabei...");
+    outfile->Printf( "\n\t\tF<AI|BC> -> Wabei...");
 
   }
   /** W(EI,AB) <--- <EI||AB> **/
@@ -336,7 +336,7 @@ void NEW_WABEI_UHF(void)
   /**** Term II ****/
 
   if(params.print == 2) {
-    outfile->Printf( "\n\t(New) FME*T2 -> Wabei...");
+    outfile->Printf( "\n\t\t(New) FME*T2 -> Wabei...");
   }
 
 
@@ -603,5 +603,6 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 21, 7, "WEIAB", 1);
   global_dpd_->buf4_close(&W);
+  outfile->Printf("\n");
 }
 }} // namespace psi::cchbar
