@@ -176,8 +176,6 @@ int read_options(const std::string &name, Options & options, bool suppress_print
     /*- Relativistic Hamiltonian type !expert -*/
     options.add_str("RELATIVISTIC", "NO","NO X2C");
 #endif
-    /*- Decontract Primary Basis? (Recommended for all X2C calculations) If Using Density Fitting, you must specify an auxiliary basis. At the moment this could have unintended consequences -*/
-  options.add_bool("DECONTRACT", false);
   /*- Whether to uncontract the basis set in a dual basis calculation -*/
   options.add_str("REL_BASIS","");
 
@@ -211,6 +209,9 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   options.add("CUBIC_GRID_SPACING", new ArrayType());
   /* How many NOONS to print -- used in libscf_solver/uhf.cc and libmints/oeprop.cc */
   options.add_str("PRINT_NOONS","3");
+
+  // Temporary: turn on/off cctransort module.  Remove after stability is proven. -TDC (1/19/2016)
+  options.add_bool("RUN_CCTRANSORT", true);
 
 
   if (name == "DETCI" || options.read_globals()) {
@@ -1703,6 +1704,21 @@ int read_options(const std::string &name, Options & options, bool suppress_print
     // in MCSCF) -*/
     // options.add("RESTRICTED_UOCC", new ArrayType());
 
+  }
+  if(name == "CCTRANSORT"|| options.read_globals()) {
+      /*- MODULEDESCRIPTION Transforms and sorts integrals for CC codes. Called before (non-density-fitted) MP2 and coupled cluster computations. -*/
+    /*- Wavefunction type !expert -*/
+    options.add_str("WFN", "");
+    /*- Reference wavefunction type -*/
+    options.add_str("REFERENCE", "RHF");
+    /*- The algorithm to use for the $\left<VV||VV\right>$ terms -*/
+    options.add_str("AO_BASIS", "NONE", "NONE DISK DIRECT");
+    /*- Delete the SO two-electron integrals after the transformation? -*/
+    options.add_bool("DELETE_TEI", true);
+    /*- Cacheing level for libdpd -*/
+    options.add_int("CACHELEVEL", 2);
+    /*- Convert ROHF MOs to semicanonical MOs -*/
+    options.add_bool("SEMICANONICAL", true);
   }
   if(name == "CCSORT"|| options.read_globals()) {
       /*- MODULEDESCRIPTION Sorts integrals for efficiency. Called before (non density-fitted) MP2 and
