@@ -324,7 +324,7 @@ void NEW_WABEI_UHF(void)
 
   }
   /** W(EI,AB) <--- <EI||AB> **/
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 7, 21, 5, 1, "F <AI|BC>");
+  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 1, "F <AI|BC>");
   global_dpd_->buf4_copy(&F, PSIF_CC_HBAR, "WEIAB");
   global_dpd_->buf4_close(&F);
 
@@ -338,7 +338,7 @@ void NEW_WABEI_UHF(void)
   /** W(EI,AB) <--- - F_ME t_MI^AB **/
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 0, 7, 2, 7, 0, "tIJAB");
   global_dpd_->file2_init(&FME, PSIF_CC_OEI, 0, 0, 1, "FME");
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 5, 0, "WEIAB");
   /* global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1.0, 1.0); */
   global_dpd_->file2_mat_init(&FME);
   global_dpd_->file2_mat_rd(&FME);
@@ -373,16 +373,39 @@ void NEW_WABEI_UHF(void)
   global_dpd_->file2_close(&FME);
   global_dpd_->buf4_close(&T2);
 
-  /**** Term III ****/
+  /**** Term IIIa ****/
 
   /** W'(AB,EI) <--- <AB||EF> t_I^F **/
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
-  global_dpd_->buf4_init(&B, PSIF_CC_BINTS, 0, 7, 5, 5, 5, 1, "B <AB|CD>");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 5, 1, "WEIAB");
+  global_dpd_->buf4_init(&B, PSIF_CC_BINTS, 0, 5, 7, 5, 5, 1, "B <AB|CD>");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-  global_dpd_->contract424(&B, &T1, &W, 3, 1, 0, 1.0, 0.0);
+  for(Gef=0; Gef < moinfo.nirreps; Gef++) {
+    Gei = Gab = Gef; /* W and B are totally symmetric */
+    for(Ge=0; Ge<moinfo.nirreps; Ge++){
+      Gf= Ge ^ Gef;
+      Gi= Gf;
+      B.matrix[Gef] = global_dpd_->dpd_block_matrix(moinfo.avirtpi[Gf],B.params->coltot[Gef])
+      W.matrix[Gef] = global_dpd_->dpd_block_matrix(moinfo.aoccpi[Gi],W.params->coltot[Gei]);
+      nrows = moinfo.aoccpi[Gi];
+      ncols = W.params->coltot[Gef];
+      nlinks = moinfo.avritpi[Gf];
+      if(nrows && ncols){
+        for(EE=0; EE< moinfo.avirtpi[Ge]; EE++){
+          e = moinfo.avir_off[Ge] + EE;
+          global_dpd_->buf4_mat_irrep_rd_block(&B, Gef, B.row_offset[Gef][e],moinfo.avirtpi[Gf]);
+          C_DGEMM('n','n',nrows,ncols,nlinks,1.0,&T2.matrix[Gi][0],nlinks,B.matrix[Gef][0],ncols,
+              1.0,W.matrix[Gei][0],ncols);
+          global_dpd_->buf4_mat_irrep_wrt_block(&W, Gei,W.row_offset[Gei][e],moinfo.aoccpi[Gi]);
+        }
+      }
+      global_dpd_->free_dpd_block(B.matrix[Gef],moinfo.avirtpi[Gf],W.params->coltot[Gef]);
+      global_dpd_->free_dpd_block(W.matrix[Gef],moinfo.aoccpi[Gi],W.params->coltot[Gei]);
+    }
+  }
+  global_dpd_->buf4_close(&W);
+  global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&B);
-  global_dpd_->buf4_close(&W);
 
   /**** Term IV ****/
 
