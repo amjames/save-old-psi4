@@ -382,7 +382,7 @@ void NEW_WABEI_UHF(void)
 
   /**** Term IIIa ****/
 
-  /** W'(AB,EI) <--- <AB||EF> t_I^F **/
+  /** W(EI,AB) <--- <AB||EF> t_I^F **/
   if(params.print & 2) {
     outfile->Printf( "\t\tB*T1 -> Wabei...");
 
@@ -421,6 +421,56 @@ void NEW_WABEI_UHF(void)
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&B);
   if(params.print & 2) outfile->Printf( "done.\n");
+
+  if(params.print & 2) outfile->Printf("\t\tD*T1*Tau+ E*Tau ...");
+
+  /**** Terms IIIc + IIId + IVa+IVb ****/
+  /*
+   * 4 terms can be expressed as 1/2(Tau_mn^ab W_MNEI)
+   * Notes:
+   *      1. W_MNIE intermediate is read from disk (M>N-,EI)order to temp buffer Z
+   *      2. W_MNIE is sorted to (EI,M>N-) order, Saved to disk, Re-Read into buffer Z
+   *            in (EI, M>N-) order
+   *      3. Tau_IJAB (MN,AB) is read from disk.
+   *      5. Read W_ABEI (EI, A>B-) into buffer W.
+   *      4. Loop over EI(row index) of W_EIAB target:
+   *        4.1 Row , EI vector W_EIAB(EI,A>B-) computed using C_DGEMV:
+   *        4.2 0.5* (Tau(M>N-,A>B-)^T (dot) Z(EI, M>N-) + 1.0*W_EIAB(EI,A>B-)
+   */
+
+  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 2, 21, 2,21, 0, "WMNIE (M>N,EI)" );
+  global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rspq, 21, 2, "WMNIE (EI,M>N)");
+  global_dpd_->buf4_close(&Z);
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR,  0, 21, 7, 21, 7, 0);
+  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR,  0, 21, 2, 21, 2, "WMNIE (EI,M>N)");
+  global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0,  2, 7,  2, 7, "tauIJAB");
+  for(Gei=0; Gei< moinfo.nirreps; Gei++) {
+    Gab = Gnm = Gei; /* Everything is totally symmetric */
+    nrows = T.params->rowtot[Gnm];
+    ncols = T.params->coltot[Gab];
+    if (nrows && ncols) {
+      global_dpd_->buf4_mat_irrep_init(&Z, Gei);
+      global_dpd_->buf4_mat_irrep_rd(&Z, Gei);
+      global_dpd_->buf4_mat_irrep_init(&T, Gnm);
+      global_dpd_->buf4_mat_irrep_rd(&T, Gnm);
+      global_dpd_->buf4_mat_irrep_row_init(&W, Gei);
+      for(ei=0; ei< W.params->rowtot[Gei]; ei++){
+         global_dpd_->buf4_mat_irrep_row_rd(&W, Gei, ei);
+         C_DGEMV('t',nrows,ncols,0.5,T.matrix[Gei][0],ncols,Z.matrix[Gei][ei],1,
+             1.0,W.matrix[Gei][0],1);
+         global_dpd_->buf4_mat_irrep_row_wrt(&W, Gei, ei);
+      }
+      global_dpd_->buf4_mat_irrep_row_close(&W, Gei);
+      global_dpd_->buf4_mat_irrep_close(&T, Gnm);
+      global_dpd_->buf4_mat_irrep_close(&Z, Gei);
+    }
+  }
+  global_dpd_->buf4_close(&T);
+  global_dpd_->buf4_close(&Z);
+  global_dpd_->buf4_close(&W);
+  if(params.print & 2) outfile->Printf("done\n");
+
+
 
   /**** Term IV ****/
 
