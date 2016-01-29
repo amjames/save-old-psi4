@@ -67,6 +67,9 @@ void WABEI_UHF(void)
 {
   dpdfile2 Fme, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C;
+  psio_tocprint(PSIF_CC_TAMPS);
+
+
 
   /**** Term I ****/
 
@@ -436,14 +439,15 @@ void NEW_WABEI_UHF(void)
    *      4. Loop over EI(row index) of W_EIAB target:
    *        4.1 Row , EI vector W_EIAB(EI,A>B-) computed using C_DGEMV:
    *        4.2 0.5* (Tau(M>N-,A>B-)^T (dot) Z(EI, M>N-) + 1.0*W_EIAB(EI,A>B-)
+   * --AMJ 1/16
    */
 
   global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 2, 21, 2,21, 0, "WMNIE (M>N,EI)" );
   global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rspq, 21, 2, "WMNIE (EI,M>N)");
   global_dpd_->buf4_close(&Z);
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR,  0, 21, 7, 21, 7, 0);
-  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR,  0, 21, 2, 21, 2, "WMNIE (EI,M>N)");
-  global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0,  2, 7,  2, 7, "tauIJAB");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR,  0, 21, 7, 21, 7, 0, "WEIAB");
+  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR,  0, 21, 2, 21, 2, 0, "WMNIE (EI,M>N)");
+  global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0,  2, 7,  2, 7, 0, "tauIJAB");
   for(Gei=0; Gei< moinfo.nirreps; Gei++) {
     Gab = Gnm = Gei; /* Everything is totally symmetric */
     nrows = T.params->rowtot[Gnm];
