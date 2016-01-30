@@ -469,19 +469,103 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_close(&W);
   if(params.print & 2) outfile->Printf("done\n");
 
+  if(params.print & 2) outfile->Printf("\t\t (T2+T1*T1)*F\n");
+  /**** Term IIIb + V  ****/
+  /** WABEI <- Z2(EI,AB) - Z2(EI,BA)
+   * + t(mf,IB)<Am|Ef> * - t(mf,IA)<Bm|Ef>
+   *
+   * 1. Z1(IB,MF) = T_MI^FB - T_I^F T_M^B
+   * 2. Sort/AS F<AI|BC> -> F<AI||BC>(IC,AB) order
+   * 2. Z2(IB,AE) = Z1(IB,MF) F(MF,AE)
+   * 3. Z2's sorted in place and added to tgt
+   *      Intermediate         Storage
+   *      Z1(IB,MF)            O^2V^2
+   *      Z2(IB,AE)            O V^3
+   * 4. Temp file wiped
+   * 5. Sort <Ai|Bc> F(ic,AB) order
+   * 6. Z1(IB,AE) = T_mI^fB(IB,mf) contract F(mf,AE)
+   * 7. Z1 sort_axpy'ed onto W like Z1's before
+   *
+   *
+   * -AMJ 1/2016
+   **/
+  build_Z1();
+  if(!params.wabei_lowdisk){
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21,5, 21, 5, 1, "F<AI|BC>");
+                                                                  /*(MF,AE)*/
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 5 ,20 "F<AI||BC> (IC,AB)");
+    global_dpd_->buf4_close(&F);
+    /* can we run ZF-->W contractions fully in core? */
+    incore =1;
+    for(h=0; h<moinfo.nirreps; h++) {
+       coltot = F.params->coltot[h];
+       if(coltot)
+         maxrows=DPD_BIGNUM/coltot;
+       if(maxrows<1){
+         outfile->Printf("\n Wabei_UHF(AAAA) Error: A single row of OVVV > 2 GW.\n");
+         exit(PSI_RETURN_FAILURE);
+       }
+       else maxrows = DPD_BIGNUM;
+       rowtot = F.params->rowtot[h];
+       for(; rowtot > maxrows; rowtot -= maxrows) {
+          if (core_total > (core_total +2*maxrows*coltot)) incore =0;
+          else core_total += 2*maxrows*coltot;
+       }
+       if(core_total > (core_total + 2*maxrows*coltot)) incore =0;
+       core_total += 2*rowtot*coltot;
+    }
+    if(core_total > dpd_memfree()) incore =0;
+    if(!incore && (params.print & 2)){
+       outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
+       exit(PSI_RETURN_FAILURE);
+    }
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "Z2(IB,EA)");
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "F<AI||BC> (IC,AB)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
+    /* * Z2(IB,AE)<--Z1(IB,MF)F(MF,AE) */
+    if(incore) global_dpd_->contract444(&W, &F,&Z, 0, 1, 1, 0);
+    global_dpd_->buf4_close(&W);
+    global_dpd_->buf4_close(&F);
+    /* *  W(EI,AB) += Z2(IB,AE) --sort--> Z2(EI,AB);
+     *                   pq,rs               sp,rq  */
+    global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR,sprq, 21, 7, "WABEI", 1.0);
+    /* *  W(EI,AB) -= Z2(IB,AE) --sort--> Z2(EI,BA);
+     *                   pq,rs               sp,qr  */
+    global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR,spqr, 21, 7, "WABEI", -1.0);
+    global_dpd_->buf4_close(&Z);
+    psio_close(PSIF_CC_TMP0,0); /* Z1, Z2, sorted Fints removed from disk */
+    psio_open(PSIF_CC_TMP0, PSIO_OPEN_NEW);
 
-
-  /**** Term IV ****/
-
-  /** WABEI <-- t_M^B <MA||EF> t_I^F - t_M^A <MB||EF> t_I^F
-      Evaluate in two steps:
-          (1) Z_MBEI = <MB||EF> t_I^F
-          (2) WABEI <-- t_M^B Z_MAEI - t_M^A Z_MBEI
-  **/
+    /* Load + sort F<Ai|Bc> */
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
+                                                                   /*mf,AE*/
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 30, 5, "F<Ai|Bc> (ic,AB)");
+    global_dpd_->buf4_close(&F);
+    /* load T(ai,JB) -> contract w/ sorted F-> store in Z */
+    global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 30, 20, 30, 20, "taiJB");
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 30,  5, 30,  5, "F<Ai|Bc> (ic,AB)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 20,  5, 20,  5, "Z(IB,AE)");
+    if(incore) global_dpd_->contract444(&T, &F, &Z, 1,1, 1.0);
+    global_dpd_->buf4_close(&F);
+    global_dpd_->buf4_close(&T);
+    /* *  W(EI,AB) += Z(IB,AE) --sort--> Z2(EI,AB);
+     *                  pq,rs               sp,rq  */
+    global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR, sprq, 21, 7, "WABEI", 1.0);
+    /* *  W(EI,AB) -= Z(IB,AE) --sort--> Z2(EI,BA);
+     *                  pq,rs               sp,qr  */
+    global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR, spqr, 21, 7, "WABEI",-1.0);
+  }
+  /*
+   * Once I get this working correctly I will worry about the low-disk case
+   */
+  else{
+    outfile->Printf("\nWABEI_UHF(AAAA) Error: No low-disk algorithim for (T2+T1*T1)*F ->Wabei\n");
+    exit(PSI_RETURN_FAILURE);
+  }
 
   /** Z(MB,EI) <-- - <MB||EF> t_I^F **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 21, 20, 21, 0, "Z(MB,EI)");
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 20, 5, 20, 5, 1, "F <IA|BC>");
+  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 20, 21, 20, 21, 0, "Z(MB,EI)");
+  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 20, 5, 20,  5,  1, "F <IA|BC>");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
   global_dpd_->contract424(&F, &T1, &Z, 3, 1, 0, -1.0, 0.0);
   global_dpd_->file2_close(&T1);
@@ -687,4 +771,61 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_close(&W);
   outfile->Printf("\n");
 }
+
+
+/*
+** Generate intermediate needed for efficient evaluation of
+** <am||ef> contributions of Wabei HBAR elements:
+** Z1(IB,MF) = t(IB,MF) - T(I,F)T(M,B)
+**
+** AMJ 1/2016
+*/
+void build_Z1(void)
+{
+  dpdbuf4 T2, Z1;
+  dpdfile2 T1;
+  int h, row, col, p, q, r, s, P, Q, R, S, Gp, Gq, Gr, Gs;
+
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
+  global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1(IB,MF)");
+  global_dpd_->buf4_close(&T2);
+
+  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
+  global_dpd_->file2_mat_init(&T1);
+  global_dpd_->file2_mat_rd(&T1);
+
+  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
+  for(h=0; h < moinfo.nirreps; h++){
+     global_dpd_->buf4_mat_irrep_init(&Z1, h);
+     global_dpd_->buf4_mat_irrep_rd(&Z1, h);
+
+    for(row = 0; row < Z1.params->rowtot[h]; row++) {
+      p =Z1.params->roworb[h][row][0];
+      q =Z1.params->roworb[h][row][1];
+      P =T1.params->rowidx[p];
+      Q =T1.params->rowidx[q];
+      Gp =T1.params->psym[p];
+      Gq = T1.params->qsym[q];
+      for(col = 0; row < Z1.params->coltot[h]; col++) {
+        r =Z1.params->roworb[h][col][0];
+        s =Z1.params->roworb[h][col][1];
+        R =T1.params->rowidx[r];
+        S =T1.params->rowidx[s];
+        Gr =T1.params->psym[r];
+        Gs = T1.params->qsym[s];
+        if (Gq == Gr && Gp == Gs)
+          Z1.matrix[h][row][col] -= T1.matrix[Gr][R][Q] * T1.matrix[Gp][P][S];
+      }
+    }
+    global_dpd_->buf4_mat_irrep_wrt(&Z1, h);
+    global_dpd_->buf4_mat_irrep_close(&Z1,h);
+  }
+  global_dpd_->file2_mat_close(&T1);
+  global_dpd_->file2_close(&T1);
+
+  global_dpd_->buf4_close(&Z1);
+
+}/*build_Z1*/
+
 }} // namespace psi::cchbar
+
