@@ -36,7 +36,7 @@
 #include "globals.h"
 
 namespace psi { namespace cchbar {
-
+void build_UHF_Z1(void);
 /* WABEI_UHF(): Computes all contributions to the ABEI spin case of
 ** the Wabei HBAR matrix elements.  The final product is stored in
 ** (EI,AB) ordering and is referred to on disk as "WEIAB".
@@ -318,6 +318,7 @@ void NEW_WABEI_UHF(void)
   double value;
   int Gef, Gei, Gab, Ge, Gi, Gf, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm;
   int Gma, ma, m, a, Ga, Gb, I, i, mi,  ei, ab, ba, b, BB, fb, bf, fe, ef, mb, am;
+  int Gam, Gmb;
   double ***WW1, ***WW2;
   int h, incore, core_total, rowtot, coltot, maxrows;
 
@@ -335,7 +336,7 @@ void NEW_WABEI_UHF(void)
   /**** Term II ****/
 
   if(params.print == 2) {
-    outfile->Printf( "\t\t(New) FME*T2 -> Wabei...");
+    outfile->Printf( "\t\t FME*T2 -> Wabei...");
   }
 
 
@@ -469,7 +470,7 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_close(&W);
   if(params.print & 2) outfile->Printf("done\n");
 
-  if(params.print & 2) outfile->Printf("\t\t (T2+T1*T1)*F\n");
+  if(params.print & 2) outfile->Printf("\t\t (T2+T1*T1)*F...\n");
   /**** Term IIIb + V  ****/
   /** WABEI <- Z2(EI,AB) - Z2(EI,BA)
    * + t(mf,IB)<Am|Ef> * - t(mf,IA)<Bm|Ef>
@@ -489,14 +490,16 @@ void NEW_WABEI_UHF(void)
    *
    * -AMJ 1/2016
    **/
-  build_Z1();
+  build_UHF_Z1();
+  outfile->Printf("\t\t Z1 Build Complete");
   if(!params.wabei_lowdisk){
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21,5, 21, 5, 1, "F<AI|BC>");
                                                                   /*(MF,AE)*/
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 5 ,20 "F<AI||BC> (IC,AB)");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 5 ,20, "F<AI||BC> (IC,AB)");
     global_dpd_->buf4_close(&F);
     /* can we run ZF-->W contractions fully in core? */
     incore =1;
+    core_total=0;
     for(h=0; h<moinfo.nirreps; h++) {
        coltot = F.params->coltot[h];
        if(coltot)
@@ -523,7 +526,7 @@ void NEW_WABEI_UHF(void)
     global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "F<AI||BC> (IC,AB)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
     /* * Z2(IB,AE)<--Z1(IB,MF)F(MF,AE) */
-    if(incore) global_dpd_->contract444(&W, &F,&Z, 0, 1, 1, 0);
+    if(incore) global_dpd_->contract444(&W, &F, &Z, 0, 1, 1.0, 0.0);
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&F);
     /* *  W(EI,AB) += Z2(IB,AE) --sort--> Z2(EI,AB);
