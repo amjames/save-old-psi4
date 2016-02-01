@@ -314,10 +314,12 @@ void WABEI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 21, 7, "WEIAB", 1);
   global_dpd_->buf4_close(&W);
+  timer_off("UHF_WABEI(old)");
 }
 
 void NEW_WABEI_UHF(void)
 {
+  timer_on("UHF_WABEI(NEW)");
   dpdfile2 FME, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C, F1, F2, W1, W2, Tau;
   double value;
@@ -496,19 +498,18 @@ void NEW_WABEI_UHF(void)
    * -AMJ 1/2016
    **/
   build_UHF_Z1();
-  outfile->Printf("\t\t Z1 Build Complete");
   if(!params.wabei_lowdisk){
-    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21,5, 21, 5, 1, "F<AI|BC>");
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21,5, 21, 5, 1, "F <AI|BC>");
                                                                   /*(MF,AE)*/
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 5 ,20, "F<AI||BC> (IC,AB)");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 20, 5, "F <AI||BC> (IC,AB)");
     global_dpd_->buf4_close(&F);
     /* can we run ZF-->W contractions fully in core? */
     incore =1;
     core_total=0;
     for(h=0; h<moinfo.nirreps; h++) {
-       coltot = F.params->coltot[h];
+       coltot= F.params->coltot[h];
        if(coltot)
-         maxrows=DPD_BIGNUM/coltot;
+        maxrows=DPD_BIGNUM/coltot;
        if(maxrows<1){
          outfile->Printf("\n Wabei_UHF(AAAA) Error: A single row of OVVV > 2 GW.\n");
          exit(PSI_RETURN_FAILURE);
@@ -519,16 +520,17 @@ void NEW_WABEI_UHF(void)
           if (core_total > (core_total +2*maxrows*coltot)) incore =0;
           else core_total += 2*maxrows*coltot;
        }
-       if(core_total > (core_total + 2*maxrows*coltot)) incore =0;
+       if(core_total > (core_total + 2*rowtot*coltot)) incore =0;
        core_total += 2*rowtot*coltot;
     }
-    if(core_total > dpd_memfree()) incore =0;
+    if(core_total > dpd_memfree()) incore = 0;
     if(!incore && (params.print & 2)){
        outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
+       outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree);
        exit(PSI_RETURN_FAILURE);
     }
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "Z2(IB,EA)");
-    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "F<AI||BC> (IC,AB)");
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 20,  5, 20,  5, 0, "F <AI||BC> (IC,AB)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
     /* * Z2(IB,AE)<--Z1(IB,MF)F(MF,AE) */
     if(incore) global_dpd_->contract444(&W, &F, &Z, 0, 1, 1.0, 0.0);
@@ -547,11 +549,11 @@ void NEW_WABEI_UHF(void)
     /* Load + sort F<Ai|Bc> */
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
                                                                    /*mf,AE*/
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 30, 5, "F<Ai|Bc> (ic,AB)");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qspr, 30, 5, "F <Ai|Bc> (ic,AB)");
     global_dpd_->buf4_close(&F);
     /* load T(ai,JB) -> contract w/ sorted F-> store in Z */
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 30, 20, 30, 20, 0,"taiJB");
-    global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 30,  5, 30,  5, 0,"F<Ai|Bc> (ic,AB)");
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 30,  5, 30,  5, 0,"F <Ai|Bc> (ic,AB)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 20,  5, 20,  5, 0,"Z(IB,AE)");
     if(incore) global_dpd_->contract444(&T, &F, &Z, 1, 1, 1.0, 0.0);
     global_dpd_->buf4_close(&F);
@@ -562,6 +564,7 @@ void NEW_WABEI_UHF(void)
     /* *  W(EI,AB) -= Z(IB,AE) --sort--> Z2(EI,BA);
      *                  pq,rs               sp,qr  */
     global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR, spqr, 21, 7, "WABEI",-1.0);
+    global_dpd_->buf4_close(&Z);
     psio_close(PSIF_CC_TMP0,0); /* Z1, sorted Fints removed from disk */
     psio_open(PSIF_CC_TMP0, PSIO_OPEN_NEW);
   }
@@ -602,12 +605,12 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, qrps, 21, 20, "Z(EI,MB)");
   global_dpd_->buf4_close(&Z);
 
-      /* - t_M^A ( <MB||EI> + Z(EI,MB) ) --> W(EI,AB) */                    /*MB,EI*/
-  global_dpd_->buf4_init(&C,  PSIF_CC_CINTS, 0, 20, 21, 20, 21, 0, "C<IA||JB> (IA,BJ)");
-  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MB)",1.0);
+      /* - t_M^A ( <MB||EI> + Z(EI,MB) ) --> W(EI,AB) */                      /*MB,EI*/
+  global_dpd_->buf4_init(&C,  PSIF_CC_CINTS, 0, 20, 21, 20, 21, 0, "C <IA||JB> (IA,BJ)");
+  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MB)", 1.0);
   global_dpd_->buf4_close(&C);
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 20, 21, 20, 0, "Z(EI,MB)");
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21,  7, 21,  7, 0, "WABEI");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 5, 21, 7, 0, "WABEI");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
   global_dpd_->file2_mat_init(&T1);
   global_dpd_->file2_mat_rd(&T1);
@@ -626,9 +629,10 @@ void NEW_WABEI_UHF(void)
         nlinks = moinfo.aoccpi[Gm];
         mb = Z.col_offset[Gei][Gm];
         ab = W.col_offset[Gei][Ga];
-        if(nrows && ncols && nlinks)
+        if(nrows && ncols && nlinks){
           C_DGEMM('t','n',nrows,ncols,nlinks,-1,T1.matrix[Gm][0],nrows,
               &(Z.matrix[Gei][ei][mb]),ncols,1,&(W.matrix[Gei][0][ab]),ncols);
+        }
       }
       global_dpd_->buf4_mat_irrep_row_wrt(&W,Gei,ei);
     }
@@ -659,10 +663,10 @@ void NEW_WABEI_UHF(void)
 
       /* t_M^B (- <MA||EI> + Z(EI,MA)  )-->W(EI,AB) */                       /*MA,EI*/
   global_dpd_->buf4_init(&C,  PSIF_CC_CINTS, 0, 20, 21, 20, 21, 0, "C<IA||JB> (IA,BJ)");
-  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MB)",-1.0);
+  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MA)",-1.0);
   global_dpd_->buf4_close(&C);
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 20, 21, 20, 0, "Z(EI,MB)");
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21,  7, 21,  7, 0, "WABEI");
+  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 20, 21, 20, 0, "Z(EI,MA)");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21,  5, 21,  7, 0, "WABEI");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
   global_dpd_->file2_mat_init(&T1);
   global_dpd_->file2_mat_rd(&T1);
@@ -681,21 +685,21 @@ void NEW_WABEI_UHF(void)
         nlinks = moinfo.aoccpi[Gm];
         am = Z.col_offset[Gei][Ga];
         ab = W.col_offset[Gei][Ga];
-        if(nrows && ncols && nlinks)
+        if(nrows && ncols && nlinks){
             C_DGEMM('n','n',nrows,ncols,nlinks,1,&(Z.matrix[Gei][ei][am]),nlinks,
                 T1.matrix[Gm][0],ncols,1,&(W.matrix[Gei][0][ab]),ncols);
+        }
       }
       global_dpd_->buf4_mat_irrep_row_wrt(&W,Gei,ei);
     }
-    global_dpd_->buf4_mat_irrep_close(&Z, Gei);
+    global_dpd_->buf4_mat_irrep_close(&Z, Gam);
   }
   global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
   if(params.print & 2) outfile->Printf("done.\n");
-
-
+  timer_off("UHF_WABEI(NEW)");
 }
 
 
@@ -719,25 +723,19 @@ void build_UHF_Z1(void)
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
   global_dpd_->file2_mat_init(&T1);
   global_dpd_->file2_mat_rd(&T1);
-  outfile->Printf("\nLooping for %d irreps\n", moinfo.nirreps);
 
   global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
   for(h=0; h < moinfo.nirreps; h++){
-    outfile->Printf("\n\t Z1 Build, Irrep %d", h);
      global_dpd_->buf4_mat_irrep_init(&Z1, h);
      global_dpd_->buf4_mat_irrep_rd(&Z1, h);
-    outfile->Printf("\n\tZ1 build, Irrep %d, Looping for %d rows\n", h,Z1.params->rowtot[h] );
     for(row = 0; row < Z1.params->rowtot[h]; row++) {
-      outfile->Printf("\t\t Z1 build, irrep %d, row %d\n", h, row);
       p =Z1.params->roworb[h][row][0];
       q =Z1.params->roworb[h][row][1];
       P =T1.params->rowidx[p];
       Q =T1.params->colidx[q];
       Gp =T1.params->psym[p];
       Gq = T1.params->qsym[q];
-      outfile->Printf("\t\t Z1 build, irrep %d, row %d looping for %d cols \n", h, row, Z1.params->coltot[h]);
       for(col = 0; col < Z1.params->coltot[h]; col++) {
-        outfile->Printf("\t\t\tZ1 Build, irrep %d,row %d, col %d\n",h,row,col);
         r =Z1.params->colorb[h][col][0];
         s =Z1.params->colorb[h][col][1];
         R =T1.params->rowidx[r];
@@ -745,7 +743,6 @@ void build_UHF_Z1(void)
         Gr =T1.params->psym[r];
         Gs = T1.params->qsym[s];
         if (Gq == Gr && Gp == Gs){
-          outfile->Printf("\t\t\tZ1.matrix[%d][%d][%d] -= T1.matrix[%d][%d][%d] *T1.matrix[%d][%d][%d]\n",h,row,col,Gr,R,Q,Gp,P,S);
           Z1.matrix[h][row][col] -= T1.matrix[Gr][R][Q] * T1.matrix[Gp][P][S];
         }
       }
