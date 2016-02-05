@@ -84,7 +84,7 @@ void WABEI_UHF(void)
   global_dpd_->file2_close(&Fme);
   global_dpd_->buf4_close(&T2);
 
-  /**** Term III ****/
+  /**** Term IIIa ****/
 
   /** W'(AB,EI) <--- <AB||EF> t_I^F **/
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
@@ -95,8 +95,7 @@ void WABEI_UHF(void)
   global_dpd_->buf4_close(&B);
   global_dpd_->buf4_close(&W);
 
-  /**** Term IV ****/
-
+  /* IIIb */
   /** WABEI <-- t_M^B <MA||EF> t_I^F - t_M^A <MB||EF> t_I^F
       Evaluate in two steps:
           (1) Z_MBEI = <MB||EF> t_I^F
@@ -309,6 +308,8 @@ void WABEI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 21, 7, "WEIAB", 1);
   global_dpd_->buf4_close(&W);
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
+  //global_dpd_->buf4_print(&W,"outfile",1);
   timer_off("UHF_WABEI(old)");
 }
 
@@ -418,7 +419,7 @@ void NEW_WABEI_UHF(void)
       global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.aoccpi[Gi],W.params->coltot[Gei]);
     }
   }
-  outfile->Printf("\nnew code after IIIa [x]\n");
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
@@ -438,18 +439,14 @@ void NEW_WABEI_UHF(void)
    *      3. Tau_IJAB (MN,AB) is read from disk.
    *      5. Read W_ABEI (EI, A>B-) into buffer W.
    *      4. Loop over EI(row index) of W_EIAB target:
-   *        4.1 Row , EI vector W_EIAB(EI,A>B-) computed using C_DGEMV:
-   *        4.2 0.5* (Tau(M>N-,A>B-)^T (dot) Z(EI, M>N-) + 1.0*W_EIAB(EI,A>B-)
    * --AMJ 1/16
    */
-  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 0, 21, 0,21, 0, "WMNIE (M>N,EI)" );
-  global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rspq, 21, 3, "WMNIE (EI,M>N)");
-
-  global_dpd_->buf4_print(&Z,"outfile",1);
+  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 2, 21, 2,21, 0, "WMNIE (M>N,EI)");
+  global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rspq, 21, 2, "WMNIE (EI,M>N)");
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR,  0, 21, 7, 21, 7, 0, "WEIAB");
   global_dpd_->buf4_init(&Z, PSIF_CC_HBAR,  0, 21, 2, 21, 2, 0, "WMNIE (EI,M>N)");
-  global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0,  0, 7,  2, 7, 0, "tauIJAB");
+  global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0,  2, 7,  2, 7, 0, "tauIJAB");
   for(Gei=0; Gei< moinfo.nirreps; Gei++) {
     Gab = Gnm = Gei; /* Everything is totally symmetric */
     nrows = T.params->rowtot[Gnm];
@@ -473,6 +470,7 @@ void NEW_WABEI_UHF(void)
   }
   global_dpd_->buf4_close(&T);
   global_dpd_->buf4_close(&Z);
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   if(params.print & 2) outfile->Printf("done\n");
 
@@ -493,7 +491,8 @@ void NEW_WABEI_UHF(void)
    * 6. Z1(IB,AE) = T_mI^fB(IB,mf) contract F(mf,AE)
    * 7. Z1 sort_axpy'ed onto W like Z1's before
    *
-   *
+   * - In case you forget again, you have checked all of the above for errors, your
+   *   problem lies below here
    * -AMJ 1/2016
    **/
   build_UHF_Z1();
@@ -578,6 +577,9 @@ void NEW_WABEI_UHF(void)
      *                  pq,rs               sp,qr  */
     global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR, spqr, 21, 7, "WEIAB",-1.0);
     global_dpd_->buf4_close(&Z);
+    global_dpd_->buf4_init(&W,PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
+    global_dpd_->buf4_print(&W,"outfile",1);
+    global_dpd_->buf4_close(&W);
     psio_close(PSIF_CC_TMP0,0); /* Z1, sorted Fints removed from disk */
     psio_open(PSIF_CC_TMP0, PSIO_OPEN_NEW);
   }
@@ -663,6 +665,7 @@ void NEW_WABEI_UHF(void)
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
+
   if(params.print & 2) outfile->Printf("done.\n");
   timer_off("UHF_WABEI(NEW)");
 }
