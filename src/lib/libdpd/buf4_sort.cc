@@ -85,7 +85,7 @@ namespace psi {
 ** Added fully out-of-core (multipass) sorting algorithm to qpsr
 ** sorting case. More cases will follow as I need them.
 **
-** -TDC, April 2005 
+** -TDC, April 2005
 **
 ** the enum-argument labelling is used in this list
 ** IC=in-core capable; OOC=out-of-core capable
@@ -154,13 +154,13 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
 #ifdef DPD_DEBUG
     if (incore == 0) {
         switch(index) {
-        case(pqsr): printf("Doing out-of-core pqsr sort.\n"); break;
-        case(prqs): printf("Doing out-of-core prqs sort.\n"); break;
-        case(prsq): printf("Doing out-of-core prsq sort.\n"); break;
-        case(qprs): printf("Doing out-of-core qprs sort.\n"); break;
-        case(qpsr): printf("Doing out-of-core qpsr sort.\n"); break;
-        case(sqpr): printf("Doing out-of-core sqpr sort.\n"); break;
-        case(rspq): printf("Doing out-of-core rspq sort.\n"); break;
+        case(pqsr): outfile->Printf("Doing out-of-core pqsr sort.\n"); break;
+        case(prqs): outfile->Printf("Doing out-of-core prqs sort.\n"); break;
+        case(prsq): outfile->Printf("Doing out-of-core prsq sort.\n"); break;
+        case(qprs): outfile->Printf("Doing out-of-core qprs sort.\n"); break;
+        case(qpsr): outfile->Printf("Doing out-of-core qpsr sort.\n"); break;
+        case(sqpr): outfile->Printf("Doing out-of-core sqpr sort.\n"); break;
+        case(rspq): outfile->Printf("Doing out-of-core rspq sort.\n"); break;
         }
     }
 #endif
