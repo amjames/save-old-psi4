@@ -82,7 +82,7 @@ int DPD::buf4_copy(dpdbuf4 *InBuf, int outfilenum, const char *label)
             incore = 1;
             if(nbuckets > 1) {
                 incore = 0;
-#if DPD_DEBUG
+#ifdef DPD_DEBUG
                 outfile->Printf( "buf4_copy: memory information.\n");
                 outfile->Printf( "buf4_copy: rowtot[%d] = %d.\n", h, InBuf->params->rowtot[h]);
                 outfile->Printf( "buf4_copy: nbuckets = %d\n", nbuckets);
