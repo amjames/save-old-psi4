@@ -62,7 +62,7 @@ int DPD::contract444(dpdbuf4 *X, dpdbuf4 *Y, dpdbuf4 *Z,
     int incore, nbuckets;
     long int memoryd, core, rows_per_bucket, rows_left, memtotal;
     int nrows, ncols, nlinks;
-#if DPD_DEBUG
+#ifdef DPD_DEBUG
     int *xrow, *xcol, *yrow, *ycol, *zrow, *zcol;
     double byte_conv;
 #endif
@@ -129,7 +129,7 @@ int DPD::contract444(dpdbuf4 *X, dpdbuf4 *Y, dpdbuf4 *Z,
         }
         else incore = 1;
 
-#if DPD_DEBUG
+#ifdef DPD_DEBUG
         if(!incore) {
             outfile->Printf( "Contract444: memory information.\n");
             outfile->Printf( "Contract444: h = %d, row = %d, col = %d, tot = %d\n",
@@ -145,8 +145,7 @@ int DPD::contract444(dpdbuf4 *X, dpdbuf4 *Y, dpdbuf4 *Z,
             outfile->Printf( "Contract444: memtotal = %d.\n", memtotal);
             outfile->Printf( "Contract444: Need %5.2f MB to run in memory.\n",
                     ((double) memtotal)*byte_conv);
-            dpd_file4_cache_print("outfile");
-            fflush("outfile");
+            file4_cache_print("outfile");
         }
 #endif
 

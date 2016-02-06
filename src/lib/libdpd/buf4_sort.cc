@@ -1664,18 +1664,17 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 else in_rows_left = InBuf->params->rowtot[Grs] % in_rows_per_bucket;
 
 #ifdef DPD_DEBUG
-                outfile->Printf(stdout, "Gpq = %d\n", Gpq);
-                outfile->Printf(stdout, "OutBuf.rowtot[Gpq]  = %d\n", OutBuf.params->rowtot[Gpq]);
-                outfile->Printf(stdout, "OutBuf.coltot[Grs]  = %d\n", OutBuf.params->coltot[Grs]);
-                outfile->Printf(stdout, "out_nbuckets        = %d\n", out_nbuckets);
-                outfile->Printf(stdout, "out_rows_per_bucket = %d\n", out_rows_per_bucket);
-                outfile->Printf(stdout, "out_rows_left       = %d\n", out_rows_left);
-                outfile->Printf(stdout, "InBuf.rowtot[Grs]   = %d\n", InBuf->params->rowtot[Grs]);
-                outfile->Printf(stdout, "InBuf.coltot[Gpq]   = %d\n", InBuf->params->coltot[Gpq]);
-                outfile->Printf(stdout, "in_nbuckets         = %d\n", in_nbuckets);
-                outfile->Printf(stdout, "in_rows_per_bucket  = %d\n", in_rows_per_bucket);
-                outfile->Printf(stdout, "in_rows_left        = %d\n", in_rows_left);
-                fflush(stdout);
+                outfile->Printf("Gpq = %d\n", Gpq);
+                outfile->Printf("OutBuf.rowtot[Gpq]  = %d\n", OutBuf.params->rowtot[Gpq]);
+                outfile->Printf("OutBuf.coltot[Grs]  = %d\n", OutBuf.params->coltot[Grs]);
+                outfile->Printf("out_nbuckets        = %d\n", out_nbuckets);
+                outfile->Printf("out_rows_per_bucket = %d\n", out_rows_per_bucket);
+                outfile->Printf("out_rows_left       = %d\n", out_rows_left);
+                outfile->Printf("InBuf.rowtot[Grs]   = %d\n", InBuf->params->rowtot[Grs]);
+                outfile->Printf("InBuf.coltot[Gpq]   = %d\n", InBuf->params->coltot[Gpq]);
+                outfile->Printf("in_nbuckets         = %d\n", in_nbuckets);
+                outfile->Printf("in_rows_per_bucket  = %d\n", in_rows_per_bucket);
+                outfile->Printf("in_rows_left        = %d\n", in_rows_left);
 #endif
 
                 buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);

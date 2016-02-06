@@ -37,7 +37,7 @@
 
 namespace psi {
 
-/* dpd_buf4_scmcopy(): Copies an existing four-index dpdbuf4 into another 
+/* dpd_buf4_scmcopy(): Copies an existing four-index dpdbuf4 into another
 ** file and multiplies it by a scalar at the same time.
 **
 ** Arguments:
@@ -85,7 +85,7 @@ int DPD::buf4_scmcopy(dpdbuf4 *InBuf, int outfilenum, const char *label, double 
             incore = 1;
             if(nbuckets > 1) {
                 incore = 0;
-#if DPD_DEBUG
+#ifdef DPD_DEBUG
                 outfile->Printf( "buf4_scmcopy: memory information.\n");
                 outfile->Printf( "buf4_scmcopy: rowtot[%d] = %d.\n", h, InBuf->params->rowtot[h]);
                 outfile->Printf( "buf4_scmcopy: nbuckets = %d\n", nbuckets);
