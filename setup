@@ -264,6 +264,13 @@ def parse_input():
     #  will translate explicit user prefs into CMake options but let CMake
     #  handle user indifference.
 
+    # conda psi4metapackage
+    group.add_argument('--metapackage-dir',
+            action='store',
+            default=None,
+            help="""The install directory for a pre-installed conda
+            psi4metapackage to supply dependencies and add-ons.""",
+            metavar='PATH')
     # ERD package
     group.add_argument('--erd',
             action='store',
@@ -297,14 +304,21 @@ def parse_input():
             action='store',
             choices=('on', 'off'),
             default=None,
-            help="""Enable PCMSolver external project (requires Fortran, zlib). If this is left blank, 
+            help="""Enable PCMSolver external project (requires Fortran, zlib). If this is left blank,
             PCMSolver will be included if Fortran compiler specified, otherwise not.""")
+    group.add_argument('--pcmsolver-dir',
+            action='store',
+            default=None,
+            help="""The install directory for a pre-built PCMSolver.
+            'lib/libpcm.so' and 'include/pcmsolver/pcmsolver.h' should be in this directory.
+            If this is left blank cmake will build one for you.""",
+            metavar='PATH')
     # CheMPS2 package
     group.add_argument('--chemps2',
             action='store',
             choices=('on', 'off'),
             default=None,
-            help="""Enable CheMPS2 external project (requires hdf5, gsl, zlib). If this is left blank, 
+            help="""Enable CheMPS2 external project (requires hdf5, gsl, zlib). If this is left blank,
             CheMPS2 will be included.""")
     group.add_argument('--chemps2-dir',
             action='store',
@@ -395,7 +409,7 @@ def check_cmake_exists(cmake_command):
 
 
 def translate_cmake(cmakevar, s):
-    cmakeformat = ' -D{}={{}}'.format(cmakevar)
+    cmakeformat = ' -D{0}={{0}}'.format(cmakevar)
     if s is None:
         return ''
     elif s == 'on':
@@ -421,6 +435,17 @@ def gen_cmake_command(args):
         command += ' -DCMAKE_CXX_COMPILER=%s' % args.cxx
 
     command = ' %s ' % args.cmake + command
+
+    # placing this early in command construction so that more specific commands can override it
+    if args.metapackage_dir:
+        command +=   ' -DBOOST_INCLUDEDIR={0}'.format(args.metapackage_dir + '/include')
+        command +=   ' -DBOOST_LIBRARYDIR={0}'.format(args.metapackage_dir + '/lib')
+        command += ' -DPYTHON_INTERPRETER={0}'.format(args.metapackage_dir + '/bin/python')
+        command +=       ' -DCHEMPS2_ROOT={0}'.format(args.metapackage_dir)
+        command +=       ' -DGSL_ROOT_DIR={0}'.format(args.metapackage_dir)
+        command +=          ' -DHDF5_ROOT={0}'.format(args.metapackage_dir)
+        command +=          ' -DZLIB_ROOT={0}'.format(args.metapackage_dir)
+        command +=     ' -DPCMSOLVER_ROOT={0}'.format(args.metapackage_dir)
 
     command += translate_cmake('ENABLE_MPI',            args.mpi)
     command += translate_cmake('ENABLE_SGI_MPT',        args.sgi_mpt)
@@ -514,6 +539,8 @@ def gen_cmake_command(args):
     if args.hdf5_dir:
         command += ' -DHDF5_ROOT={0}'.format(args.hdf5_dir)
 
+    if args.pcmsolver_dir:
+        command += ' -DPCMSOLVER_ROOT={0}'.format(args.pcmsolver_dir)
     if args.chemps2_dir:
         command += ' -DCHEMPS2_ROOT={0}'.format(args.chemps2_dir)
 
