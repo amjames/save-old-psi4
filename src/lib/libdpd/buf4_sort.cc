@@ -96,7 +96,7 @@ namespace psi {
 ** qrps: IC     ** qrsp: IC
 ** qspr: IC     ** qsrp: IC
 ** rqps: IC     ** rqsp: IC
-** rpqs: IC     ** rpsq: IC
+** rpqs: IC     ** rpsq: IC/OOC
 ** rsqp: IC     ** rspq: IC/OOC
 ** sqrp: IC     ** sqpr: none
 ** srqp: IC     ** srpq: IC
