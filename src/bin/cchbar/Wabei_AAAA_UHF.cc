@@ -258,7 +258,7 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z, &W, 1);
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_close(&W);
-  //debug_check();
+  debug_check();
 
   /**** Terms VI+ VII ****/
 
@@ -327,7 +327,7 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z, &W, 1.0);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
-  debug_check();
+  //debug_check();
 
   /**** Combine accumulated W'(AB,EI) and W(EI,AB) terms into WEIAB ****/
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
@@ -495,108 +495,22 @@ void NEW_WABEI_UHF(void)
 
   if(params.print & 2) outfile->Printf("\t\t (T2+T1*T1)*F... ");
   /**** Term IIIb + V  ****/
-  /** WABEI <- Z2(EI,AB) - Z2(EI,BA)
-   * + t(mf,IB)<Am|Ef> * - t(mf,IA)<Bm|Ef>
+  /*
+   * WEIAB <-- W2(EI,AB)-W2(EI,BA)
+   * W2(EI,AB ) = W1(IB,EA) (sorted )
+   * W1(IB,EA) = Z1(IB,MF) <MA||FE> (MF,EA) + t_Ij^Ab(IB,mf) <mA|fE> (mf,EA)
+   * Z1(IB,MF) = t_IJ^AB(IB,MF) - t_I^F*t_M^B
    *
-   * 1. Z1(IB,MF) = T_MI^FB - T_I^F T_M^B
-   * 2. Sort/AS F<AI|BC> -> F<AI||BC>(IC,AB) order
-   * 2. Z2(IB,AE) = Z1(IB,MF) F(MF,AE)
-   * 3. Z2's sorted in place and added to tgt
-   *      Intermediate         Storage
-   *      Z1(IB,MF)            O^2V^2
-   *      Z2(IB,AE)            O V^3
-   * 4. Temp file wiped
-   * 5. Sort <Ai|Bc> F(ic,AB) order
-   * 6. Z1(IB,AE) = T_mI^fB(IB,mf) contract F(mf,AE)
-   * 7. Z1 sort_axpy'ed onto W like Z1's before
+   * NB:
+   * W2(EI,AB)-W2(EI,BA) achieved by reading in with A/S flag
    *
-   * -AMJ 1/2016
+   * --AMJ 02/12/2016
    **/
-  /** <BM||EF> --> F(BE,MF) **/
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 1, "F <AI|BC>");
-  global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, prqs, 5, 20, "F <AI||BC> (AB,IC)");
-  global_dpd_->buf4_close(&F);
-
-  /** <Bm|Ef> --> (BE,mf) **/
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
-  global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, prqs, 5, 30, "F <Ai|Bc> (AB,ic)");
-  global_dpd_->buf4_close(&F);
-
-  /** <BM||EF> t_IM^AF --> Z(BE,IA) **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "Z(BE,IA)");
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 5, 20, 5, 20, 0, "F <AI||BC> (AB,IC)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
-  global_dpd_->contract444(&F, &T2, &Z, 0, 0, -1, 0);
-  global_dpd_->buf4_close(&T2);
-  global_dpd_->buf4_close(&F);
-  global_dpd_->buf4_close(&Z);
-
-  /** <Bm|Ef> t_Im^Af --> Z(BE,IA) **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "Z(BE,IA)");
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 5, 30, 5, 30, 0, "F <Ai|Bc> (AB,ic)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0, "tIAjb");
-  global_dpd_->contract444(&F, &T2, &Z, 0, 0, -1, 1);
-  global_dpd_->buf4_close(&T2);
-  global_dpd_->buf4_close(&F);
-  global_dpd_->buf4_close(&Z);
-
-  /** Z(BE,IA) --> Z'(EI,AB) **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "Z(BE,IA)");
-  global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, qrsp, 21, 5, "Z'(EI,AB)");
-  global_dpd_->buf4_close(&Z);
-
-  /** Z'(EI,AB) --> Z''(EI,BA) **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "Z'(EI,AB)");
-  global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, pqsr, 21, 5, "Z''(EI,BA)");
-  global_dpd_->buf4_close(&Z);
-
-  /** Z'(EI,AB) = Z'(EI,AB) - Z''(EI,BA) **/
-  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "Z'(EI,AB)");
-  global_dpd_->buf4_init(&Z2, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "Z''(EI,BA)");
-  global_dpd_->buf4_axpy(&Z2, &Z1, -1);
-  global_dpd_->buf4_close(&Z2);
-  global_dpd_->buf4_close(&Z1);
-
-  /** W(EI,AB) <-- Z'(EI,AB) **/
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 5, 21, 7, 0, "WEIAB");
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "Z'(EI,AB)");
-  global_dpd_->buf4_axpy(&Z, &W, 1);
-  global_dpd_->buf4_close(&Z);
-  global_dpd_->buf4_close(&W);
-
-  /** Z(MB,EI) <-- - <MB||EF> t_I^F **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 21, 20, 21, 0, "Z(MB,EI)");
-  global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 20, 5, 20, 5, 1, "F <IA|BC>");
-  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-  global_dpd_->contract424(&F, &T1, &Z, 3, 1, 0, -1.0, 0.0);
-  global_dpd_->file2_close(&T1);
-  global_dpd_->buf4_close(&F);
-  global_dpd_->buf4_close(&Z);
-
-  /** t_M^A Z(MB,EI) --> Z1(AB,EI) **/
-  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 5, 21, 5, 21, 0, "Z1(AB,EI)");
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 21, 20, 21, 0, "Z(MB,EI)");
-  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-  global_dpd_->contract244(&T1, &Z, &Z1, 0, 0, 0, 1.0, 0.0);
-  global_dpd_->file2_close(&T1);
-  global_dpd_->buf4_close(&Z);
-  global_dpd_->buf4_sort(&Z1, PSIF_CC_TMP0, qprs, 5, 21, "Z2(BA,EI)");
-  global_dpd_->buf4_close(&Z1);
-
-  /** Z1(AB,EI) - Z2(BA,EI) --> W'(AB,EI) **/
-  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 5, 21, 5, 21, 0, "Z1(AB,EI)");
-  global_dpd_->buf4_init(&Z2, PSIF_CC_TMP0, 0, 5, 21, 5, 21, 0, "Z2(BA,EI)");
-  global_dpd_->buf4_axpy(&Z2, &Z1, -1.0);
-  global_dpd_->buf4_close(&Z2);
-
-  global_dpd_->buf4_sort_axpy(&Z1,PSIF_CC_HBAR, rspq, 21, 7,"WEIAB",1);
-  global_dpd_->buf4_close(&Z1);
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
-  //global_dpd_->buf4_print(&W,"outfile",1);
-  global_dpd_->buf4_close(&W);
-/*
   build_UHF_Z1();
   if(!params.wabei_lowdisk){
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 1 , "F <AI|BC>");
+    //                                                        AM||EF   MF EA
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qsrp, 20, 5, "F <AI||BC> (IC,BA)");
      //can we run contractions fully in core?
     incore =1;
     core_total=0;
@@ -623,20 +537,40 @@ void NEW_WABEI_UHF(void)
        outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree);
        exit(PSI_RETURN_FAILURE);
     }
-    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 27, 29, 27, 29, 0, "F <iA|bC>");
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, prqs, 30, 5 ,"F <iA|bC> (ic,AC)");
     global_dpd_->buf4_close(&F);
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
+                                                                //F <AM||EF> (MF,EA)
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "F <AI||BC> (IC,BA)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "W1(IB,EA)");
+    outfile->Printf("\t\t Starting first contract 4");
+    if(incore)global_dpd_->contract444(&Z, &F, &W, 0, 1, 1, 0);
+    outfile->Printf("... Done!\n");
+    global_dpd_->buf4_close(&F);
+    global_dpd_->buf4_close(&Z);
+    global_dpd_->buf4_close(&W);
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, qsrp, 30, 5 ,"F <Ai|Bc> (ic,BA)");
+    global_dpd_->buf4_close(&F);                                  //tIBmf
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0,"tIAjb");
-    global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 30,  5, 30,  5, 0,"F <iA|bC> (ic,AC)");
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 20,  5, 20,  5, 0,"Z2(IA,BE)");
-    if(incore) global_dpd_->contract444(&T, &F, &Z, 0, 1, 1.0, 0.0);
-    global_dpd_->buf4_sort_axpy(&Z,PSIF_CC_TMP0, qrsp, 5, 21, "Z1(AB,EI)",1);
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 30,  5, 30,  5, 0,"F <Ai|Bc> (ic,BA)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "W1(IB,EA)");
+    if(incore) global_dpd_->contract444(&T, &F, &W, 0, 1, 1, 1);
+    global_dpd_->buf4_close(&F);
+    global_dpd_->buf4_close(&T);
+    global_dpd_->buf4_sort(&W, PSIF_CC_TMP0, rpsq, 21, 5, "W2(EI,AB)");
+    global_dpd_->buf4_close(&W);
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)");
+    global_dpd_->buf4_sort(&W, PSIF_CC_TMP0, pqsr, 21, 5, "W2(EI,BA)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0,21, 5,21, 5, 0, "W2(EI,BA)");
+    global_dpd_->buf4_axpy(&Z, &W, -1);
+    global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&Z);
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 7 ,21, 5 ,21,  0, "Z1(AB,EI)");
-    global_dpd_->buf4_sort_axpy(&Z,PSIF_CC_HBAR, rspq, 21, 7, "WABEI",1);
-    global_dpd_->buf4_sort_axpy(&Z,PSIF_CC_HBAR, rsqp, 21, 7, "WABEI",-1);
+    global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 5, 21, 7, 0, "WEIAB" );
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)");
+    global_dpd_->buf4_axpy(&Z,&W, 1);
+    global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&Z);
-    global_dpd_->buf4_init(&W,PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
+    global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB" );
     global_dpd_->buf4_print(&W,"outfile",1);
     global_dpd_->buf4_close(&W);
     psio_close(PSIF_CC_TMP0,0);  //Z1, sorted Fints removed from disk
@@ -647,7 +581,6 @@ void NEW_WABEI_UHF(void)
     outfile->Printf("\nWABEI_UHF(AAAA) Error: No low-disk algorithim for (T2+T1*T1)*F ->Wabei\n");
     exit(PSI_RETURN_FAILURE);
   }
-*/
   if(params.print & 2 ) outfile->Printf("done\n");
   /** Term VI + VII **/
 
@@ -692,10 +625,10 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7,0, "WEIAB");
-  global_dpd_->buf4_print(&W,"outfile",1);
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
-  global_dpd_->file2_mat_init(&T1);
-  global_dpd_->file2_mat_rd(&T1);
+  //global_dpd_->file2_mat_init(&T1);
+  //global_dpd_->file2_mat_rd(&T1);
 
   /*
   for(Gei=0; Gei < moinfo.nirreps; Gei++){
@@ -748,76 +681,53 @@ void NEW_WABEI_UHF(void)
 **
 ** AMJ 1/2016
 */
-/* void build_UHF_Z1(void) */
-/* { */
-/*   dpdbuf4 T2, Z1, Fint; */
-/*   dpdfile2 T1; */
-/*   int Zirrep, m,b,e,f,i,a,M,B,E,F,EF,I,A,AB,EI,MB,MA,ei,ab,MF,IF,IA; */
-/*   int Gm,Gf,Ga,Gb,Gmb,Gma,Gi,Ge,Gef,Gif,Gei; */
-/*   int GA,GM,GB,GE,GI,GF,GEI, GEF,GIF,GAM,GMB; */
+void build_UHF_Z1(void)
+{
+  dpdbuf4 T2, Z1, Fint;
+  dpdfile2 T1;
+  int row,col,h;
+  int GI,GB,GM,GF;
+  int i,b,m,f;
+  int I,B,M,F;
 
-/*   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB"); */
-/*   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA"); */
-/*   global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 5, 21, 5, 21, 0, "Z1(AB,EI)"); */
-/*   global_dpd_->buf4_init(&Fint, PSIF_CC_FINTS, 0, 20, 5, 20, 5, 1, "F <IA|BC>"); */
-/*   global_dpd_->buf4_print(&T2,"outfile",1); */
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "TIAJB");
+  global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1(IB,MF)");
+  global_dpd_->buf4_close(&T2);
+  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IB,MF)");
+  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
+  global_dpd_->file2_mat_init(&T1);
+  global_dpd_->file2_mat_rd(&T1);
 
-/*   global_dpd_->file2_mat_init(&T1); */
-/*   global_dpd_->file2_mat_rd(&T1); */
-/*   buf4_mat_irrep_init(&T2); */
-/*   for(Zirrep=0; Zirrep<moinfo.nirreps; Zirrep++){ */
-/*     buf4_mat_irrep_rd(&T2,Zirrep); */
-/*     global_dpd_->buf4_mat_irrep_row_init(&Z1,Zirrep); */
-/*     global_dpd_->buf4_mat_irrep_row_init(&Fint,Zirrep); */
-/*     for(ab=0; ab < Z1.params->rowtot[Zirrep]; ab++){ */
-/*       a  = Z1.params->roworb[Zirrep][ab][0]; */
-/*       b  = Z1.params->roworb[Zirrep][ab][1]; */
-/*       A  = T1.params->colidx[a]; */
-/*       Ga = Z1.params->psym[A]; */
-/*       Gb = Z1.params->qsym[b]; */
-/*       global_dpd_->buf4_mat_irrep_row_zero(&Z1, Zirrep,ab); */
-/*       Gmb = Gb ^ Zirrep; */
-/*       Gma = Ga ^ Zirrep; */
-/*       for(ei=0; ei < Z1.params->coltot[Zirrep]; ei++){ */
-/*         e   = Z1.params->colorb[Zirrep][ei][0]; */
-/*         i   = Z1.params->colorb[Zirrep][ei][1]; */
-/*         I   = T1.params->rowidx[i]; */
-/*         Gi  = Z1.params->psym[i]; */
-/*         Ge  = Z1.params->rsym[e]; */
-/*         Gef = Ge^Zirrep; */
-/*         Gif = Gi^Zirrep; */
-/*         for(m=0; m<Fint.params->ppi[Gmb]; m++){ */
-/*           M  = T1.params->rowidx[m]; */
-/*           Gm = T1.params->psym[M]; */
-/*           MB = Fint.params->rowidx[m][b]; */
-/*           IA = T2.params->rowidx[i][a]; */
-/*           if( Zirrep == 3 && i == 4 ) debug_break(); */
-/*           global_dpd_->buf4_mat_irrep_row_rd(&Fint,Zirrep,MB); */
-/*           for(f=0;f<Fint.params->spi[Gef];f++){ */
-/*             MF = T2.params->colidx[m][f]; */
-/*             EF = Fint.params->colidx[e][f]; */
-/*             F  = T1.params->colidx[f]; */
-/*             Gf = T1.params->qsym[F]; */
-/*             if(Gm == Ga && Gf == Gi){ */
-/*               Z1.matrix[Zirrep][0][ei] += (-1*Fint.matrix[Zirrep][0][EF]* */
-/*                   (T1.matrix[Gi][I][F]*T1.matrix[Gm][M][A]- T2.matrix[G][MA][IF])); */
-/*             } */
-/*           } */
-/*         } */
-/*       } */
-/*       global_dpd_->buf4_mat_irrep_row_wrt(&Z1,Zirrep,ab); */
-/*     } */
-/*     global_dpd_->buf4_mat_irrep_row_close(&T2,Zirrep); */
-/*     global_dpd_->buf4_mat_irrep_row_close(&Fint,Zirrep); */
-/*   } */
-/*   global_dpd_->file2_mat_close(&T1); */
-/*   global_dpd_->file2_close(&T1); */
+  for(h = 0; h < moinfo.nirreps; h++){
+    global_dpd_->buf4_mat_irrep_init(&Z1, h);
+    global_dpd_->buf4_mat_irrep_rd(&Z1, h);
+    for(row = 0; row< Z1.params->rowtot[h]; row ++){
+      i  = Z1.params->roworb[h][row][0];
+      b  = Z1.params->roworb[h][row][1];
+      I  = T1.params->rowidx[i];
+      B  = T1.params->colidx[b];
+      GI = T1.params->psym[i];
+      GB = T1.params->qsym[b];
+      for(col =0; col < Z1.params->coltot[h]; col ++){
+        m = Z1.params->colorb[h][col][0];
+        f = Z1.params->colorb[h][col][1];
+        M = T1.params->rowidx[m];
+        F = T1.params->colidx[f];
+        GM = T1.params->psym[m];
+        GF = T1.params->qsym[f];
 
-/*   global_dpd_->buf4_close(&Z1); */
-/*   global_dpd_->buf4_close(&T2); */
-/*   global_dpd_->buf4_close(&Fint); */
-
-/* }//build_Z1 */
+        if( GI == GF && GB == GM ){
+          Z1.matrix[h][row][col] -= (T1.matrix[GI][I][F] * T1.matrix[GM][M][B]);
+        }
+      }
+    }
+    global_dpd_->buf4_mat_irrep_wrt(&Z1, h);
+    global_dpd_->buf4_mat_irrep_close(&Z1, h);
+  }
+  global_dpd_->file2_mat_close(&T1);
+  global_dpd_->file2_close(&T1);
+  global_dpd_->buf4_close(&Z1);
+}//build_Z1
 
 }} // namespace psi::cchbar
 
