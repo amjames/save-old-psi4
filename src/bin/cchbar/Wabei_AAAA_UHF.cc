@@ -258,7 +258,7 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z, &W, 1);
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_close(&W);
-  debug_check();
+  //debug_check();
 
   /**** Terms VI+ VII ****/
 
@@ -510,7 +510,7 @@ void NEW_WABEI_UHF(void)
   if(!params.wabei_lowdisk){
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 1 , "F <AI|BC>");
     //                                                        BM||EF   BE MF
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, prqs, 20, 5, "F <AI||BC> (AB,IC)");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, prqs, 5, 20, "F <AI||BC> (AB,IC)");
      //can we run contractions fully in core?
     incore =1;
     core_total=0;
@@ -539,26 +539,27 @@ void NEW_WABEI_UHF(void)
     }
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IA,MF)");
+    //global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
                                                                 //F <BM||EF> (BE,MF)
-    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 5, 20, 5, 20 0, "F <AI||BC> (AB,IC)");
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "W1(BE,IA)");
-    if(incore)global_dpd_->contract444(&F,&Z, &W, 0, -1, 1, 0);
+    global_dpd_->buf4_init(&F, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "F <AI||BC> (AB,IC)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 5, 20, 5, 20,  0, "W1(BE,IA)");
+    if(incore)global_dpd_->contract444(&F,&Z, &W, 0, 0, -1, 0);
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&Z);
 
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
-    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, prqs, 5 ,30,"F <Ai|Bc> (ic,BA)");
+    global_dpd_->buf4_sort(&F, PSIF_CC_TMP0, prqs, 5 ,30,"F <Ai|Bc> (AB,ic)");
     global_dpd_->buf4_close(&F);                                  //tIAmf
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0,"tIAjb");
     global_dpd_->buf4_init(&F, PSIF_CC_TMP0,  0, 5, 30, 5, 30,  0,"F <Ai|Bc> (AB,ic)");
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "W1(BE,IA)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "W1(BE,IA)");
     if(incore) global_dpd_->contract444(&F, &T, &W, 0, 0, -1, 1);
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&T);
     global_dpd_->buf4_close(&W);
 
-    global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 20, 5, 20, 5, 0, "W1(BE,IA))");
+    global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 5, 20, 5, 20, 0, "W1(BE,IA)");
     global_dpd_->buf4_sort(&Z1, PSIF_CC_TMP0, qrsp, 21, 5, "W2(EI,AB)");
     global_dpd_->buf4_close(&Z1);
 
@@ -566,22 +567,22 @@ void NEW_WABEI_UHF(void)
     global_dpd_->buf4_sort(&Z1, PSIF_CC_TMP0, pqsr, 21, 5, "W2'(EI,BA)");
     global_dpd_->buf4_close(&Z1);
 
-    global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)");
-    global_dpd_->buf4_init(&Z2, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2'(EI,BA)");
-    //global_dpd_->buf4_axpy(&Z1,&Z2, -1);
-    global_dpd_->buf4_axpy(&Z2,&Z1, -1);
-    global_dpd_->buf4_close(&Z1);
-    global_dpd_->buf4_close(&Z2);
+    /* global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)"); */
+    /* global_dpd_->buf4_init(&Z2, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2'(EI,BA)"); */
+    /* global_dpd_->buf4_axpy(&Z2,&Z1, -1); */
+    /* global_dpd_->buf4_close(&Z1); */
+    /* global_dpd_->buf4_close(&Z2); */
 
     global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 5, 21, 7, 0, "WEIAB" );
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 1, "W2(EI,AB)");
     global_dpd_->buf4_axpy(&Z,&W,1.0);
+    //global_dpd_->buf4_print(&W,"outfile",1);
     global_dpd_->buf4_close(&Z);
     global_dpd_->buf4_close(&W);
 
-    global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB" );
-    global_dpd_->buf4_print(&W,"outfile",1);
-    global_dpd_->buf4_close(&W);
+    //global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB" );
+    //global_dpd_->buf4_print(&W,"outfile",1);
+    //global_dpd_->buf4_close(&W);
     psio_close(PSIF_CC_TMP0,0);  //Z1, sorted Fints removed from disk
     psio_open(PSIF_CC_TMP0, PSIO_OPEN_NEW);
   }
@@ -600,44 +601,44 @@ void NEW_WABEI_UHF(void)
    * 3. - t_M^A( <MB||EI> + Z(EI,MB) ) --> W'(EI,AB)
    * 4. WABEI <-- W'(EI,AB)- W'(EI,AB)
    */
-  if(params.print & 2 ) outfile->Printf("\t\tT1*(C+D*T2)-->WEIAB");
-        /* <MN||EF>(ME,NF)*t_IN^BF(NF,IB) --> Z(ME,IB) */
-  global_dpd_->buf4_init(&D,  PSIF_CC_DINTS, 0, 20, 20, 20, 20, 0, "D <IJ||AB> (IA,JB)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
-  global_dpd_->buf4_init(&Z,  PSIF_CC_TMP0,  0, 20, 20, 20, 20, 0, "Z(ME,IB)");
-  global_dpd_->contract444(&D, &T2, &Z, 0, 0, 1.0, 0.0);
-  global_dpd_->buf4_close(&D);
-  global_dpd_->buf4_close(&T2);
-        /* - <Mn|Ef> (ME,nf)*T_nI^fB(nf,IB) --> Z(ME,IB) */
-  global_dpd_->buf4_init(&D,  PSIF_CC_DINTS, 0, 20, 30, 20, 30, 0, "D <Ij|Ab> (IA,jb)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0, "tIAjb");
-  global_dpd_->contract444(&D,&T2, &Z, 0, 0, -1.0,1.0);
-  global_dpd_->buf4_close(&D);
-  global_dpd_->buf4_close(&T2);
-        /* Z(ME,IB) -- sort --> Z(EI,MB) */
-        /*   pq,rs                qr,ps */
-  global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, qrps, 21, 20, "Z(EI,MB)");
-  global_dpd_->buf4_close(&Z);
-
-      /* - t_M^A ( <MB||EI> + Z(EI,MB) ) --> W(EI,AB) */                      /*MB,EI*/
-  global_dpd_->buf4_init(&C,  PSIF_CC_CINTS, 0, 20, 21, 20, 21, 0, "C <IA||JB> (IA,BJ)");
-  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MB)",  -1.0);
-  global_dpd_->buf4_close(&C);
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 20, 21, 20, 0, "Z(EI,MB)");
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 21, 5, 21, 7, 0, "W'EIAB");
-  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-  global_dpd_->contract424(&Z, &T1 ,&W,2,0,0,-1,0);
-  global_dpd_->file2_close(&T1);
-  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, pqsr, 21, 7, "WEIAB",-1);
-  global_dpd_->buf4_close(&Z);
-  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 21, 5, 21, 7,0, "WEIAB");
-  global_dpd_->buf4_axpy(&W, &Z,1);
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_close(&Z);
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7,0, "WEIAB");
-  //global_dpd_->buf4_print(&W,"outfile",1);
-  global_dpd_->buf4_close(&W);
-  //global_dpd_->file2_mat_init(&T1);
+//  if(params.print & 2 ) outfile->Printf("\t\tT1*(C+D*T2)-->WEIAB");
+//        /* <MN||EF>(ME,NF)*t_IN^BF(NF,IB) --> Z(ME,IB) */
+//  global_dpd_->buf4_init(&D,  PSIF_CC_DINTS, 0, 20, 20, 20, 20, 0, "D <IJ||AB> (IA,JB)");
+//  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
+//  global_dpd_->buf4_init(&Z,  PSIF_CC_TMP0,  0, 20, 20, 20, 20, 0, "Z(ME,IB)");
+//  global_dpd_->contract444(&D, &T2, &Z, 0, 0, 1.0, 0.0);
+//  global_dpd_->buf4_close(&D);
+//  global_dpd_->buf4_close(&T2);
+//        /* - <Mn|Ef> (ME,nf)*T_nI^fB(nf,IB) --> Z(ME,IB) */
+//  global_dpd_->buf4_init(&D,  PSIF_CC_DINTS, 0, 20, 30, 20, 30, 0, "D <Ij|Ab> (IA,jb)");
+//  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0, "tIAjb");
+//  global_dpd_->contract444(&D,&T2, &Z, 0, 0, -1.0,1.0);
+//  global_dpd_->buf4_close(&D);
+//  global_dpd_->buf4_close(&T2);
+//        /* Z(ME,IB) -- sort --> Z(EI,MB) */
+//        /*   pq,rs                qr,ps */
+//  global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, qrps, 21, 20, "Z(EI,MB)");
+//  global_dpd_->buf4_close(&Z);
+//
+//      /* - t_M^A ( <MB||EI> + Z(EI,MB) ) --> W(EI,AB) */                      /*MB,EI*/
+//  global_dpd_->buf4_init(&C,  PSIF_CC_CINTS, 0, 20, 21, 20, 21, 0, "C <IA||JB> (IA,BJ)");
+//  global_dpd_->buf4_sort_axpy(&C,PSIF_CC_TMP0, rspq, 21, 20, "Z(EI,MB)",  -1.0);
+//  global_dpd_->buf4_close(&C);
+//  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 20, 21, 20, 0, "Z(EI,MB)");
+//  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 21, 5, 21, 7, 0, "W'EIAB");
+//  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
+//  global_dpd_->contract424(&Z, &T1 ,&W,2,0,0,-1,0);
+//  global_dpd_->file2_close(&T1);
+//  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, pqsr, 21, 7, "WEIAB",-1);
+//  global_dpd_->buf4_close(&Z);
+//  global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 21, 5, 21, 7,0, "WEIAB");
+//  global_dpd_->buf4_axpy(&W, &Z,1);
+//  global_dpd_->buf4_close(&W);
+//  global_dpd_->buf4_close(&Z);
+//  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7,0, "WEIAB");
+//  //global_dpd_->buf4_print(&W,"outfile",1);
+//  global_dpd_->buf4_close(&W);
+//  //global_dpd_->file2_mat_init(&T1);
   //global_dpd_->file2_mat_rd(&T1);
 
   /*
@@ -679,8 +680,10 @@ void NEW_WABEI_UHF(void)
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
-
   */
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21,7, 21, 7, 0, "WEIAB" );
+  global_dpd_->buf4_print(&W, "outfile", 1);
+  global_dpd_->buf4_close(&W);
 
   if(params.print & 2) outfile->Printf("done.\n");
   timer_off("UHF_WABEI(NEW)");
@@ -700,7 +703,7 @@ void build_UHF_Z1(void)
   int i,b,m,f,a;
   int I,B,M,F,A;
 
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "TIAJB");
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 20, 20, 20, 20, 0, "tIAJB");
   global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1(IA,MF)");
   global_dpd_->buf4_close(&T2);
   global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IA,MF)");
