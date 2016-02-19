@@ -99,7 +99,7 @@ void WABEI_UHF(void)
   global_dpd_->file2_close(&Fme);
   global_dpd_->buf4_close(&T2);
 
-  /**** Term IIIa ****/
+  /**** Term III ****/
 
   /** W'(AB,EI) <--- <AB||EF> t_I^F **/
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
@@ -110,47 +110,7 @@ void WABEI_UHF(void)
   global_dpd_->buf4_close(&B);
   global_dpd_->buf4_close(&W);
 
-
-  /**** Term IIIc+IIId ****/
-
-  /** WABEI <-- 1/2 tau_MN^AB <MN||EF> t_I^F
-      Evaluate in two steps:
-         (1) Z_MNEI = <MN||EF> t_I^F
-         (2) WABEI <-- 1/2 tau_MN^AB Z_MNEI
-      Store target in W'(AB,EI)
-  **/
-
-  /** Z(MN,EI) <-- <MN||EF> t_I^F **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 2, 21, 2, 21, 0, "Z(MN,EI)");
-  global_dpd_->buf4_init(&D, PSIF_CC_DINTS, 0, 2, 5, 2, 5, 0, "D <IJ||AB> (I>J,AB)");
-  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-  global_dpd_->contract424(&D, &T1, &Z, 3, 1, 0, 1, 0);
-  global_dpd_->file2_close(&T1);
-  global_dpd_->buf4_close(&D);
-  global_dpd_->buf4_close(&Z);
-
-  /** tau_MN^AB Z(MN,EI) --> W'(AB,EI) **/
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 2, 21, 2, 21, 0, "Z(MN,EI)");
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 2, 7, 2, 7, 0, "tauIJAB");
-  global_dpd_->contract444(&T2, &Z, &W, 1, 1, 1, 1);
-  global_dpd_->buf4_close(&T2);
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_close(&Z);
-
-  /**** Term IVa + IVb****/
-
-  /** tau_MN^AB <MN||EI> --> W'(AB,EI) **/
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
-  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 2, 7, 2, 7, 0, "tauIJAB");
-  global_dpd_->buf4_init(&E, PSIF_CC_EINTS, 0, 2, 21, 2, 21, 0, "E <IJ||KA> (I>J,AK)");
-  global_dpd_->contract444(&T2, &E, &W, 1, 1, -1, 1);
-  global_dpd_->buf4_close(&E);
-  global_dpd_->buf4_close(&T2);
-  global_dpd_->buf4_close(&W);
-  //debug_check();
-
-  /**** Term IIIb ****/
+  /**** Term IV ****/
 
   /** WABEI <-- t_M^B <MA||EF> t_I^F - t_M^A <MB||EF> t_I^F
       Evaluate in two steps:
@@ -187,8 +147,46 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z1, &W, 1.0);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z1);
-  //debug_check();
+
   /**** Term V ****/
+
+  /** WABEI <-- 1/2 tau_MN^AB <MN||EF> t_I^F
+      Evaluate in two steps:
+         (1) Z_MNEI = <MN||EF> t_I^F
+         (2) WABEI <-- 1/2 tau_MN^AB Z_MNEI
+      Store target in W'(AB,EI)
+  **/
+
+  /** Z(MN,EI) <-- <MN||EF> t_I^F **/
+  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 2, 21, 2, 21, 0, "Z(MN,EI)");
+  global_dpd_->buf4_init(&D, PSIF_CC_DINTS, 0, 2, 5, 2, 5, 0, "D <IJ||AB> (I>J,AB)");
+  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
+  global_dpd_->contract424(&D, &T1, &Z, 3, 1, 0, 1, 0);
+  global_dpd_->file2_close(&T1);
+  global_dpd_->buf4_close(&D);
+  global_dpd_->buf4_close(&Z);
+
+  /** tau_MN^AB Z(MN,EI) --> W'(AB,EI) **/
+  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 2, 21, 2, 21, 0, "Z(MN,EI)");
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 2, 7, 2, 7, 0, "tauIJAB");
+  global_dpd_->contract444(&T2, &Z, &W, 1, 1, 1, 1);
+  global_dpd_->buf4_close(&T2);
+  global_dpd_->buf4_close(&W);
+  global_dpd_->buf4_close(&Z);
+
+  /**** Term VI ****/
+
+  /** tau_MN^AB <MN||EI> --> W'(AB,EI) **/
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 2, 7, 2, 7, 0, "tauIJAB");
+  global_dpd_->buf4_init(&E, PSIF_CC_EINTS, 0, 2, 21, 2, 21, 0, "E <IJ||KA> (I>J,AK)");
+  global_dpd_->contract444(&T2, &E, &W, 1, 1, -1, 1);
+  global_dpd_->buf4_close(&E);
+  global_dpd_->buf4_close(&T2);
+  global_dpd_->buf4_close(&W);
+
+  /**** Term VII ****/
 
   /** WABEI <-- <BM||EF> t_IM^AF + <Bm|Ef> t_Im^Af - <AM||EF> t_IM^BF - <Am|Ef> t_Im^Bf
       Evaluate in six steps:
@@ -253,9 +251,8 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z, &W, 1);
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_close(&W);
-  //debug_check();
 
-  /**** Terms VI+ VII ****/
+  /**** Terms VIII and IX ****/
 
   /** WABEI <-- -P(AB) t_M^A { <MB||EI> + t_IN^BF <MN||EF> + t_In^Bf <Mn|Ef> }
       Evaluate in two steps:
@@ -322,7 +319,6 @@ void WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z, &W, 1.0);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&Z);
-  //debug_check();
 
   /**** Combine accumulated W'(AB,EI) and W(EI,AB) terms into WEIAB ****/
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
@@ -491,15 +487,17 @@ void NEW_WABEI_UHF(void)
   if(params.print & 2) outfile->Printf("\t\t (T2+T1*T1)*F... ");
   /**** Term IIIb + V  ****/
   /*
-   * WEIAB <-- W2(EI,AB)-W2(EI,BA)
-   * W2(EI,AB ) = W1(IB,EA) (sorted )
-   * W1(IB,EA) = Z1(IB,MF) <MA||FE> (MF,EA) + t_Ij^Ab(IB,mf) <mA|fE> (mf,EA)
-   * Z1(IB,MF) = t_IJ^AB(IB,MF) - t_I^F*t_M^B
+   * <AI||BC> sorted F(AB,IC)
+   * Build Z1(IA,MF) = t_{IM}^{AF} -t_I^Ft_M^A
+   * contract F(AB,IC)Z1(IA,MF) => W1(BE,IA)
+   * <Ai|Bc> sorted F(AB,ic)
+   * t_Im^Af = t(IA,mf)
+   * contract F(AB,ic)t(IA,mf) => W1(BE,IA)
+   * sort W1(BE,IA) W2(EI,AB)
+   * Read W2 with anti=1
+   * Axpy W2=> WEIAB
    *
-   * NB:
-   * W2(EI,AB)-W2(EI,BA) achieved by reading in with A/S flag
-   *
-   * --AMJ 02/12/2016
+   * --AMJ 02/19/2016
    **/
   build_UHF_Z1();//Z(IA,MF)
   if(!params.wabei_lowdisk){
@@ -561,12 +559,6 @@ void NEW_WABEI_UHF(void)
     global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)");
     global_dpd_->buf4_sort(&Z1, PSIF_CC_TMP0, pqsr, 21, 5, "W2'(EI,BA)");
     global_dpd_->buf4_close(&Z1);
-
-    /* global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2(EI,AB)"); */
-    /* global_dpd_->buf4_init(&Z2, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 0, "W2'(EI,BA)"); */
-    /* global_dpd_->buf4_axpy(&Z2,&Z1, -1); */
-    /* global_dpd_->buf4_close(&Z1); */
-    /* global_dpd_->buf4_close(&Z2); */
 
     global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 5, 21, 7, 0, "WEIAB" );
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21, 5, 1, "W2(EI,AB)");
