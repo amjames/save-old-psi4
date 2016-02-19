@@ -35,7 +35,7 @@ namespace psi { namespace scf {
 
 class ROHF : public HF {
 protected:
-    SharedMatrix Feff_;
+    SharedMatrix moFeff_;
     SharedMatrix soFeff_;
     SharedMatrix Dt_old_;
     SharedMatrix Dt_;
@@ -47,8 +47,6 @@ protected:
     SharedMatrix moFa_;
     SharedMatrix moFb_;
 
-    /// Before semicanonicalize is called, this is true, but it becomes false
-    bool restricted_;
     void form_initialF();
     void form_initial_C();
     void form_C();
@@ -56,6 +54,7 @@ protected:
     double compute_initial_E();
     double compute_E();
     virtual bool stability_analysis();
+    virtual void prepare_canonical_orthogonalization();
     void semicanonicalize();
 
     void form_G();
@@ -72,13 +71,19 @@ protected:
 
     void save_density_and_energy();
 
+    // Second-order convergence code
+    void Hx(SharedMatrix x, SharedMatrix ret);
+    virtual int soscf_update(void);
+
     void common_init();
 public:
-    ROHF(Options& options, boost::shared_ptr<PSIO> psio, boost::shared_ptr<Chkpt> chkpt);
-    ROHF(Options& options, boost::shared_ptr<PSIO> psio);
+    ROHF(SharedWavefunction ref_wfn, Options& options, boost::shared_ptr<PSIO> psio);
     virtual ~ROHF();
-    virtual bool same_a_b_orbs() const { return restricted_; }
-    virtual bool same_a_b_dens() const { return false; }
+
+    SharedMatrix moFeff() const {return moFeff_; }
+    SharedMatrix moFa() const {return moFa_; }
+    SharedMatrix moFb() const {return moFb_; }
+
 };
 
 }}

@@ -16,6 +16,8 @@ class FISAPT {
 
 protected:
 
+    // sSAPT0 exchange-scaling
+    double sSAPT0_scale_;
     /// Global options object 
     Options& options_;
     /// Memory in doubles
@@ -109,7 +111,7 @@ protected:
 
 public:
     /// Initialize an FISAPT object with an SCF reference
-    FISAPT(boost::shared_ptr<Wavefunction> scf);  
+    FISAPT(boost::shared_ptr<Wavefunction> scf, Options& options);  
     virtual ~FISAPT();
 
     /// Gogo!
@@ -153,7 +155,8 @@ public:
         boost::shared_ptr<Matrix> T, // Kinetic integrals
         boost::shared_ptr<Matrix> V, // Potential integrals
         boost::shared_ptr<Matrix> W, // External embedding potential
-        boost::shared_ptr<Matrix> C  // Guess for occupied orbitals [nbf x nocc]
+        boost::shared_ptr<Matrix> C, // Guess for occupied orbitals [nbf x nocc]
+        Options& options
         );
     virtual ~FISAPTSCF();
 
@@ -172,6 +175,7 @@ friend class FISAPT;
 protected:
 
     // => Global Data <= //
+
 
     // Convergence tolerance
     double delta_;
