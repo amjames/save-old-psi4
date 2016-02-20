@@ -1243,10 +1243,197 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 }
             }
         }
-        else {
-            outfile->Printf( "LIBDPD: Out-of-core algorithm not yet coded for qrsp sort.\n");
-            dpd_error("buf4_sort", "outfile");
-        }
+        else { //AJ here
+          for(Gpq=0; Gpq < nirreps; Gpq++) {
+            Grs = Gpq^my_irrep;
+
+            /* determine how many rows of OutBuf we can store in 1/2 of core*/
+            out_rows_per_bucket = dpd_memfree()/(2 * OutBuf.params->coltot[Grs]);
+            if(out_rows_per_bucket > OutBuf.params->rowtot[Gpq])
+              out_rows_per_bucket = OutBuf.params->rowtot[Gpq];
+            out_nbuckets = (int) ceil((double) OutBuf.params->rowtot[Gpq]/(double) out_rows_per_bucket);
+            if(out_nbuckets == 1) out_rows_left = out_rows_per_bucket;
+            else out_rows_left = OutBuf.params->rowtot[Gpq] % out_rows_per_bucket;
+
+            /* allocate space for the bucket of rows */
+            buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);
+
+            for(n=0; n< (out_rows_left ? out_nbuckets-1 : out_nbuckets); n++) {
+
+              out_row_start = n*out_rows_per_bucket;
+
+              for(Grow = 0; Grow < nirreps; Grow++) {
+                Gcol = Grow^my_irrep;
+
+                /* determine how many rows of InBuf we can store in the other half of the core */
+                in_rows_per_bucket = dpd_memfree()/(2 * InBuf->params->rowtot[Grow]);
+                if(in_rows_per_bucket > InBuf->params->rowtot[Grow])
+                  in_rows_per_bucket > InBuf->params->rowtot[Grow];
+                in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
+                if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
+                else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
+
+                /*allocate space for the bucket of rows */
+                buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );
+
+                for(m =0; m < (in_rows_left ? in_nbuckets-1 : in_nbuckets); m++ ){
+
+                  in_row_start = m*in_rows_per_bucket;
+                  buf4_mat_irrep_rd_block(InBuf, Grow, in_row_start, in_rows_per_bucket);
+
+                  for(pq=0; pq < out_rows_per_bucket; pq++){
+                    p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                    q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                    Gp = OutBuf.params->psym[p];
+                    Gq = Gpq^Gp;
+                    for(rs = 0; rs < OutBuf.params->coltot[Grs]; rs++) {
+                      r = OutBuf.params->colorb[Grs][rs][0];
+                      s = OutBuf.params->colorb[Grs][rs][1];
+                      Gr = OutBuf.params->rsym[r];
+                      Gs = Grs^Gr;
+
+                      Gsp = Gp^Gs;
+                      Gqr = Gq^Gr;
+
+                      if(Gsp == Grow) {
+                        sp = InBuf->params->rowidx[s][p] - in_row_start;
+                        /* check if the current value is in the current in_bucket or not */
+                        if(sp >= 0 && sp < in_rows_per_bucket) {
+                          qr = InBuf->params->colidx[q][r];
+                          OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
+                        }
+
+                      }//Gsp==Grow
+                    }//for rs
+
+                  }//for pq
+                }//for m
+                if(in_rows_left) {
+
+                  in_row_start = m*in_rows_per_bucket;
+                  buf4_mat_irrep_rd_block(InBuf, Grow, in_row_start, in_rows_left);
+
+                  for(pq=0; pq< out_rows_per_bucket; pq++){
+                    p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                    q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                    Gp = OutBuf.params->psym[p];
+                    Gq = Gpq^Gp;
+                    for(rs=0; rs<OutBuf.params->coltot[Grs]; rs++) {
+                      r = OutBuf.params->colorb[Grs][rs][0];
+                      s = OutBuf.params->colorb[Grs][rs][1];
+                      Gr = OutBuf.params->rsym[r];
+                      Gs = Grs^Gr;
+
+                      Gsp = Gs^Gp;
+                      Gqr = Gq^Gr;
+
+                      if(Gsp ==Grow){
+                        sp = InBuf->params->rowidx[s][p];
+                        /* check if the current value is in core or not */
+                        if(sp >= 0 && sp< in_rows_left) {
+                          qr = InBuf->params->colidx[q][r];
+                          OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
+                        }//if sp>= 0 ...
+
+                      }//if Gsp == Grow
+
+                    }//for rs ..
+                  }//for pq
+                }//if in_rows_left
+                buf4_mat_irrep_close_block(InBuf, Grow, in_rows_per_bucket);
+              }//for Grow
+              buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, out_rows_per_bucket);
+            }//for n
+            if(out_rows_left) {
+
+              out_row_start = n*out_rows_per_bucket;
+
+              for(Grow = 0; Grow < nirreps; Grow++) {
+                Gcol = Grow^my_irrep;
+
+                /* determine how many rows of InBuf we can store in the other half of the core */
+                in_rows_per_bucket = dpd_memfree()/(2 * InBuf->params->rowtot[Grow]);
+                if(in_rows_per_bucket > InBuf->params->rowtot[Grow])
+                  in_rows_per_bucket > InBuf->params->rowtot[Grow];
+                in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
+                if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
+                else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
+
+                /*allocate space for the bucket of rows */
+                buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );
+
+                for(m =0; m < (in_rows_left ? in_nbuckets-1 : in_nbuckets); m++ ){
+
+                  in_row_start = m*in_rows_per_bucket;
+                  buf4_mat_irrep_rd_block(InBuf, Grow, in_row_start, in_rows_per_bucket);
+
+                  for(pq=0; pq < out_rows_per_bucket; pq++){
+                    p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                    q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                    Gp = OutBuf.params->psym[p];
+                    Gq = Gpq^Gp;
+                    for(rs = 0; rs < OutBuf.params->coltot[Grs]; rs++) {
+                      r = OutBuf.params->colorb[Grs][rs][0];
+                      s = OutBuf.params->colorb[Grs][rs][1];
+                      Gr = OutBuf.params->rsym[r];
+                      Gs = Grs^Gr;
+
+                      Gsp = Gp^Gs;
+                      Gqr = Gq^Gr;
+
+                      if(Gsp == Grow) {
+                        sp = InBuf->params->rowidx[s][p] - in_row_start;
+                        /* check if the current value is in the current in_bucket or not */
+                        if(sp >= 0 && sp < in_rows_per_bucket) {
+                          qr = InBuf->params->colidx[q][r];
+                          OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
+                        }
+
+                      }//Gsp==Grow
+                    }//for rs
+
+                  }//for pq
+                }//for m
+                if(in_rows_left) {
+
+                  in_row_start = m*in_rows_per_bucket;
+                  buf4_mat_irrep_rd_block(InBuf, Grow, in_row_start, in_rows_left);
+
+                  for(pq=0; pq< out_rows_per_bucket; pq++){
+                    p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                    q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                    Gp = OutBuf.params->psym[p];
+                    Gq = Gpq^Gp;
+                    for(rs=0; rs<OutBuf.params->coltot[Grs]; rs++) {
+                      r = OutBuf.params->colorb[Grs][rs][0];
+                      s = OutBuf.params->colorb[Grs][rs][1];
+                      Gr = OutBuf.params->rsym[r];
+                      Gs = Grs^Gr;
+
+                      Gsp = Gs^Gp;
+                      Gqr = Gq^Gr;
+
+                      if(Gsp ==Grow){
+                        sp = InBuf->params->rowidx[s][p];
+                        /* check if the current value is in core or not */
+                        if(sp >= 0 && sp< in_rows_left) {
+                          qr = InBuf->params->colidx[q][r];
+                          OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
+                        }//if sp>= 0 ...
+
+                      }//if Gsp == Grow
+
+                    }//for rs ..
+                  }//for pq
+                }//if in_rows_left
+                buf4_mat_irrep_close_block(InBuf, Grow, in_rows_per_bucket);
+              }//for Grow
+              buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, out_rows_per_bucket);
+            } //if out_rows_left ..
+
+          }//Gpq
+
+        } //AJ HERE
 
 #ifdef DPD_TIMER
         timer_off("qrsp");
