@@ -550,6 +550,45 @@ This failure can be fixed by either setting |scf__df_basis_scf| to an auxiliary
 basis set defined for all atoms in the system, or by setting |scf__df_scf_guess|
 to false, which disables this acceleration entirely.
 
+Second-order Convergence
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Second-order convergence takes into account both the gradient and Hessian to
+take a full Newton step with respect to the orbital parameters. This results in
+quadratic convergence with respect to density for SCF methods. For cases where
+normal acceleration methods either fail or take many iterations to converge,
+second-order can reduce the total time to solution.
+
+Solving second-order (SO) methods exactly would require an inversion of the
+orbital Hessian (an expensive :math:`\mathbb{N}^6` operation); however, these
+equations are normally solved iteratively where each iteration costs the same
+as a normal Fock build (:math:`\mathbb{N}^4`). The overall SOSCF operation is
+thus broken down into micro- and macroiterations where the microiterations
+refer to solving the SOSCF equations and macroiterations are the construction
+of a new Fock matrix based on the orbitals from a SOSCF step.
+
+SOSCF requires that all elements of the gradient to be less than one before the
+method is valid. To this end, pre-SOSCF SCF iterations use normal
+gradient-based extrapolation procedures (e.g., DIIS) until the gradient
+conditions are met. Note that while the total number of macroiterations will be
+less for SOSCF than gradient-based convergence acceleration the cost of solving
+the microiterations typically results in the overall cost being greater for
+SOSCF than for gradient-based methods. Therefore, SOSCF should only be used if
+it is difficult to locate a stable minimum.
+
+SOSCF is only available for RHF, ROHF, and UHF reference. To turn on simply set
+the option |scf__soscf| to ``true``. Additional options to modify the number of
+microiterations taken are as follows:
+
+    |scf__soscf_r_start|: when to start SOSCF based on the current density RMS
+
+    |scf__soscf_max_iter|: the maximum number of SOSCF microiterations per macroiteration
+
+    |scf__soscf_conv|: the relative convergence tolerance of the SOSCF microiterations
+
+    |scf__soscf_print|: option to print the microiterations or not
+
+
 Stability Analysis
 ~~~~~~~~~~~~~~~~~~
 
@@ -651,11 +690,11 @@ explicitly indicated here.
 
   |cphf__solver_n_root|: Solve for N eigenvectors in each irreducible representation
 
-  |cphf__solver_n_guess|: Use N guess vectors, this needs to be larger than the number of roots so that the lowest ones can be captured reliably. Default: 3
+  |cphf__solver_n_guess|: Use N guess vectors, this needs to be larger than the number of roots so that the lowest ones can be captured reliably. Default within this context: 3
 
-  |cphf__solver_min_subspace|: Minimum size of the subspace when collapsing. Default: 4
+  |cphf__solver_min_subspace|: Minimum size of the subspace when collapsing. 
 
-  |cphf__solver_max_subspace|: Maximum size of the subspace. Default: 18
+  |cphf__solver_max_subspace|: Maximum size of the subspace. Default within this context: 12
    
 
 In case convergence problems are encountered during the Davidson procedure,
@@ -668,7 +707,29 @@ This may happen in minimal basis sets, especially with symmetry, but the code au
 If the solver seems to converge on the wrong eigenvalue, try increasing |cphf__solver_n_guess|.
 Otherwise, if the solver is almost converged but reaches the maximum number of iterations, try increasing
 |cphf__solver_maxiter|.
-   
+
+
+External potentials and QM/MM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition to the implementation of :ref:`EFP <sec:libefp>` for accurate QM/MM
+computations, |PSIfour| can perform more rudimentary QM/MM procedures via the
+|scf__extern| keyword.  The following snippet, extracted from the 
+:srcsample:`extern1` test case, demonstrates its use for a TIP3P external potential::
+
+    Chrgfield = QMMM()
+    Chrgfield.extern.addCharge(-0.834, 1.649232019048, 0.0, -2.356023604706)
+    Chrgfield.extern.addCharge( 0.417, 0.544757019107, 0.0, -3.799961446760)
+    Chrgfield.extern.addCharge( 0.417, 0.544757019107, 0.0, -0.912085762652)
+    psi4.set_global_option_python('EXTERN',Chrgfield.extern)
+
+First a QMMM object is created, then three separate particles are added to this
+object before the SCF code is told about its existence on the last line.  The
+calls to ``addCharge`` take the atomic charge, x coordinate, y coordinate, and
+z coordinate in that order.  The atomic charge is specified in atomic units,
+and the coordinates always use the same units as the geometry specification in
+the regular QM region.  Additional MM molecules may be specified by adding
+extra calls to ``addCharge`` to describe the full MM region.
 
 
 Convergence and Algorithm Defaults

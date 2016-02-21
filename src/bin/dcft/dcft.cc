@@ -36,10 +36,18 @@ using namespace boost;
 
 namespace psi{ namespace dcft{
 
-DCFTSolver::DCFTSolver(boost::shared_ptr<Wavefunction> reference_wavefunction, Options &options):
-        Wavefunction(options, _default_psio_lib_)
+DCFTSolver::DCFTSolver(SharedWavefunction ref_wfn, Options &options):
+        Wavefunction(options)
 {
-    reference_wavefunction_ = reference_wavefunction;
+    reference_wavefunction_ = ref_wfn;
+    shallow_copy(ref_wfn);
+    Ca_ = ref_wfn->Ca()->clone();
+    Cb_ = ref_wfn->Cb()->clone();
+    Da_ = ref_wfn->Da()->clone();
+    Db_ = ref_wfn->Db()->clone();
+    Fa_ = ref_wfn->Fa()->clone();
+    Fb_ = ref_wfn->Fb()->clone();
+
     maxiter_            = options.get_int("MAXITER");
     print_              = options.get_int("PRINT");
     maxdiis_            = options.get_int("DIIS_MAX_VECS");
@@ -51,6 +59,11 @@ DCFTSolver::DCFTSolver(boost::shared_ptr<Wavefunction> reference_wavefunction, O
     cumulant_threshold_ = options.get_double("R_CONVERGENCE");
     int_tolerance_      = options.get_double("INTS_TOLERANCE");
     energy_level_shift_ = options.get_double("ENERGY_LEVEL_SHIFT");
+
+    if (!options_["E_CONVERGENCE"].has_changed())
+        energy_threshold_ = options.get_double("R_CONVERGENCE");
+    else
+        energy_threshold_ = options.get_double("E_CONVERGENCE");
 
     psio_->open(PSIF_DCFT_DPD, PSIO_OPEN_OLD);
 
@@ -71,8 +84,7 @@ DCFTSolver::DCFTSolver(boost::shared_ptr<Wavefunction> reference_wavefunction, O
 /**
  * Computes A = A + alpha * B, writing the result back to A
  */
-void
-DCFTSolver::dpd_buf4_add(dpdbuf4 *A, dpdbuf4 *B, double alpha)
+void DCFTSolver::dpd_buf4_add(dpdbuf4 *A, dpdbuf4 *B, double alpha)
 {
     for(int h = 0; h < nirrep_; ++h){
         global_dpd_->buf4_mat_irrep_init(A, h);

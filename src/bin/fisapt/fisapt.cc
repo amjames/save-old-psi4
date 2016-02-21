@@ -25,8 +25,8 @@ namespace psi {
 
 namespace fisapt {
 
-FISAPT::FISAPT(boost::shared_ptr<Wavefunction> scf) :
-    options_(Process::environment.options),
+FISAPT::FISAPT(SharedWavefunction scf, Options& options) :
+    options_(options),
     reference_(scf)
 {
     common_init();
@@ -133,7 +133,7 @@ void FISAPT::localize()
     ranges.push_back(vectors_["eps_focc"]->dimpi()[0]);
     ranges.push_back(vectors_["eps_occ"]->dimpi()[0]);
 
-    boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc"]);
+    boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc"], options_);
     local->print_header();
     std::map<std::string, boost::shared_ptr<Matrix> > ret = local->localize(matrices_["Cocc"], Focc, ranges);
 
@@ -645,7 +645,7 @@ void FISAPT::coulomb()
 
     // => Global JK Object <= //
 
-    jk_ = JK::build_JK();
+    jk_ = JK::build_JK(primary_, options_);
     jk_->set_memory(doubles_);
 
     // => Build J and K for embedding <= //
@@ -714,7 +714,8 @@ void FISAPT::scf()
         matrices_["T"],
         matrices_["VA"],
         matrices_["WC"],
-        matrices_["LoccA"]
+        matrices_["LoccA"],
+        options_
         ));
     scfA->compute_energy();
 
@@ -737,7 +738,8 @@ void FISAPT::scf()
         matrices_["T"],
         matrices_["VB"],
         matrices_["WC"],
-        matrices_["LoccB"]
+        matrices_["LoccB"],
+        options_
         ));
     scfB->compute_energy();
 
@@ -2220,7 +2222,7 @@ void FISAPT::plot()
     boost::filesystem::path dir(filepath);
     boost::filesystem::create_directory(dir);
 
-    boost::shared_ptr<fisapt::CubicScalarGrid> csg(new fisapt::CubicScalarGrid(primary_));
+    boost::shared_ptr<fisapt::CubicScalarGrid> csg(new fisapt::CubicScalarGrid(primary_, options_));
     csg->set_filepath(filepath);
     csg->print_header();
 
@@ -2304,7 +2306,7 @@ void FISAPT::flocalize()
         boost::shared_ptr<Matrix> Focc(new Matrix("Focc", vectors_["eps_occ0A"]->dimpi()[0], vectors_["eps_occ0A"]->dimpi()[0]));
         Focc->set_diagonal(vectors_["eps_occ0A"]);
 
-        boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc0A"]);
+        boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc0A"], options_);
         local->print_header();
         std::map<std::string, boost::shared_ptr<Matrix> > ret = local->localize(matrices_["Cocc0A"], Focc, ranges);
 
@@ -2370,7 +2372,7 @@ void FISAPT::flocalize()
         boost::shared_ptr<Matrix> Focc(new Matrix("Focc", vectors_["eps_occ0B"]->dimpi()[0], vectors_["eps_occ0B"]->dimpi()[0]));
         Focc->set_diagonal(vectors_["eps_occ0B"]);
 
-        boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc0B"]);
+        boost::shared_ptr<fisapt::IBOLocalizer2> local = fisapt::IBOLocalizer2::build(primary_, matrices_["Cocc0B"], options_);
         local->print_header();
         std::map<std::string, boost::shared_ptr<Matrix> > ret = local->localize(matrices_["Cocc0B"], Focc, ranges);
 
@@ -2462,7 +2464,7 @@ void FISAPT::felst()
         options_.get_str("BASIS"), primary_->has_puream());
     size_t nQ = jkfit->nbf();
 
-    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,Process::environment.options);
+    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,options_);
     df->clear();
 
     std::vector<boost::shared_ptr<Matrix> > Cs;
@@ -2627,7 +2629,7 @@ void FISAPT::fexch()
         options_.get_str("BASIS"), primary_->has_puream());
     int nQ = jkfit->nbf();
 
-    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,Process::environment.options);
+    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,options_);
     df->clear();
 
     std::vector<boost::shared_ptr<Matrix> > Cs;
@@ -2790,6 +2792,11 @@ void FISAPT::fexch()
         matrices_["Exch_AB"]->scale(scale);
         outfile->Printf("    Scaling F-SAPT Exch10(S^2) by %11.3E to match Exch10\n\n", scale);
     }
+    if (options_.get_bool("sSAPT0_SCALE")) {
+        sSAPT0_scale_ = scalars_["Exch10"] / scalars_["Exch10(S^2)"];
+        sSAPT0_scale_ = pow(sSAPT0_scale_,3.0);
+        outfile->Printf("    Scaling F-SAPT Exch-Ind and Exch-Disp by %11.3E \n\n", sSAPT0_scale_);
+    }
 }
 void FISAPT::find()
 {
@@ -2878,7 +2885,7 @@ void FISAPT::find()
         options_.get_str("BASIS"), primary_->has_puream());
     size_t nQ = jkfit->nbf();
 
-    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,Process::environment.options);
+    boost::shared_ptr<DFERI> df = DFERI::build(primary_,jkfit,options_);
     df->clear();
 
     std::vector<boost::shared_ptr<Matrix> > Cs;
@@ -3058,6 +3065,11 @@ void FISAPT::find()
 
     // ==> A <- B Uncoupled <== //
 
+    double scale = 1.0;
+    if (options_.get_bool("sSAPT0_SCALE")) {
+        scale = sSAPT0_scale_;
+    }
+
     fseek(WBarf,0L,SEEK_SET);
     for (int B = 0; B < nB + nb; B++) {
 
@@ -3078,7 +3090,7 @@ void FISAPT::find()
         // Zip up the Ind20 contributions
         for (int a = 0; a < na; a++) {
             double Jval = 2.0 * C_DDOT(nr,x2Ap[a],1,wBTp[a],1);
-            double Kval = 2.0 * C_DDOT(nr,x2Ap[a],1,uBTp[a],1);
+            double Kval = scale * 2.0 * C_DDOT(nr,x2Ap[a],1,uBTp[a],1);
             Ind20u_AB_termsp[a][B] = Jval;
             Ind20u_AB += Jval;
             ExchInd20u_AB_termsp[a][B] = Kval;
@@ -3111,7 +3123,7 @@ void FISAPT::find()
         // Zip up the Ind20 contributions
         for (int b = 0; b < nb; b++) {
             double Jval = 2.0 * C_DDOT(ns,x2Bp[b],1,wATp[b],1);
-            double Kval = 2.0 * C_DDOT(ns,x2Bp[b],1,uATp[b],1);
+            double Kval = 2.0 * scale * C_DDOT(ns,x2Bp[b],1,uATp[b],1);
             Ind20u_BA_termsp[A][b] = Jval;
             Ind20u_BA += Jval;
             ExchInd20u_BA_termsp[A][b] = Kval;
@@ -3171,7 +3183,7 @@ void FISAPT::find()
 
         // => JK Object <= //
 
-        boost::shared_ptr<JK> jk = JK::build_JK();
+        boost::shared_ptr<JK> jk = JK::build_JK(primary_, options_);
 
         // TODO: Account for 2-index overhead in memory
         int nso = primary_->nbf();
@@ -3521,7 +3533,7 @@ void FISAPT::fdisp()
 
     // => Integrals from the THCE <= //
 
-    boost::shared_ptr<DFERI> df = DFERI::build(primary_,auxiliary,Process::environment.options);
+    boost::shared_ptr<DFERI> df = DFERI::build(primary_,auxiliary,options_);
     df->clear();
 
     std::vector<boost::shared_ptr<Matrix> > Cs;
@@ -3757,6 +3769,11 @@ void FISAPT::fdisp()
     double** UBp = Uaocc_B->pointer();
 
     // ==> Master Loop <== //
+    
+    double scale = 1.0;
+    if (options_.get_bool("sSAPT0_SCALE")) {
+        scale = sSAPT0_scale_;
+    }
 
     fseek(Aarf,0L,SEEK_SET);
     fseek(Bbrf,0L,SEEK_SET);
@@ -3845,8 +3862,8 @@ void FISAPT::fdisp()
 
                 for (int a = 0; a < na; a++) {
                     for (int b = 0; b < nb; b++) {
-                        E_exch_disp20Tp[a][b] -= 2.0 * T2abp[a][b] * V2abp[a][b];
-                        ExchDisp20 -= 2.0 * T2abp[a][b] * V2abp[a][b];
+                        E_exch_disp20Tp[a][b] -= scale * 2.0 * T2abp[a][b] * V2abp[a][b];
+                        ExchDisp20 -= scale * 2.0 * T2abp[a][b] * V2abp[a][b];
                     }
                 }
             }
@@ -3861,6 +3878,10 @@ void FISAPT::fdisp()
     for (int t = 0; t < nT; t++) {
         E_disp20->add(E_disp20_threads[t]);
         E_exch_disp20->add(E_exch_disp20_threads[t]);
+    }
+    
+    if (options_.get_bool("sSAPT0_SCALE")) {
+        E_exch_disp20->scale(sSAPT0_scale_);
     }
 
     for (int a = 0; a < na; a++) {
@@ -3975,9 +3996,10 @@ FISAPTSCF::FISAPTSCF(
     boost::shared_ptr<Matrix> T,
     boost::shared_ptr<Matrix> V,
     boost::shared_ptr<Matrix> W,
-    boost::shared_ptr<Matrix> C
+    boost::shared_ptr<Matrix> C,
+    Options& options
     ) :
-    options_(Process::environment.options),
+    options_(options),
     jk_(jk)
 {
     scalars_["E NUC"] = enuc;

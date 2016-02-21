@@ -303,7 +303,7 @@ void MOLECULE::add_interfragment(void) {
   else if (Opt_params.interfragment_mode == OPT_PARAMS::PRINCIPAL_AXES)
     oprintf_out("\tInterfragment coordinate reference points to be determined by principal axes.\n");
 
-  for (int frag_i=0; frag_i<(fragments.size()-1); ++frag_i) {
+  for (std::size_t frag_i=0; frag_i<(fragments.size()-1); ++frag_i) {
 
     Afrag = fragments[frag_i];
     Bfrag = fragments[frag_i+1];
@@ -489,7 +489,7 @@ void MOLECULE::freeze_interfragment_asymm(void) {
 
   oprintf_out("\tChecking interfragment coordinates for ones that break symmetry.\n");
   
-  for (int I=0; I<interfragments.size(); ++I) {
+  for (std::size_t I=0; I<interfragments.size(); ++I) {
     double **B = interfragments[I]->compute_B(); // ->Ncoord() X (3*atom A)+3(natom_B)
 
     int iA = interfragments[I]->g_A_index();
@@ -512,8 +512,8 @@ void MOLECULE::freeze_interfragment_asymm(void) {
 
 
 #if defined(OPTKING_PACKAGE_PSI)
-      psi::Process::environment.molecule()->set_geometry(coord);
-      symmetric_intco = psi::Process::environment.molecule()->valid_atom_map(Opt_params.symm_tol);
+      psi::Process::environment.legacy_molecule()->set_geometry(coord);
+      symmetric_intco = psi::Process::environment.legacy_molecule()->valid_atom_map(Opt_params.symm_tol);
 #elif defined(OPTKING_PACKAGE_QCHEM)
   // not implemented yet
 #endif
@@ -530,7 +530,7 @@ void MOLECULE::freeze_interfragment_asymm(void) {
   }
 
 #if defined(OPTKING_PACKAGE_PSI)
-      psi::Process::environment.molecule()->set_geometry(coord_orig);
+      psi::Process::environment.legacy_molecule()->set_geometry(coord_orig);
 #endif
 
   return;

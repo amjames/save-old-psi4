@@ -40,25 +40,31 @@ typedef psi::IntegralFactory IntFac;
 typedef boost::shared_ptr<IntFac> SharedFac;
 typedef boost::shared_ptr<psi::TwoBodyAOInt> SharedInts;
 typedef boost::shared_ptr<psi::BasisSet> SharedBasis;
-SharedInts Ints;
+std::vector<SharedInts> Ints;
 static SharedBasis primary_;
 static SharedFac factory_;
 
 void SetUp(){
     psi::Options& options = psi::Process::environment.options;
     primary_=psi::BasisSet::pyconstruct_orbital(
-        psi::Process::environment.molecule(),
+        psi::Process::environment.legacy_molecule(),
         "BASIS", options.get_str("BASIS")
     );
    factory_=SharedFac(new IntFac(primary_,primary_,primary_,primary_));
-   Ints=SharedInts(factory_->erd_eri());
+   // Each OMP thread gets its own integral object.
+   // Make sure the vector is empty before pushing.
+   Ints.clear();
+   int maxthreads = omp_get_max_threads();
+   for(int thread = 0; thread < maxthreads; ++thread) {
+       Ints.push_back(SharedInts(factory_->erd_eri()));
+   }
 }
 
 int ComputeShellQuartet(struct BasisSet*,int ThreadID,
       int M,int N,int P,int Q,double ** IntOut){
-   int NInts=Ints->compute_shell(M,N,P,Q);
+   int NInts=Ints[ThreadID]->compute_shell(M,N,P,Q);
    const double* Intergrals;
-   if(NInts!=0)Intergrals=Ints->buffer();
+   if(NInts!=0)Intergrals=Ints[ThreadID]->buffer();
    (*IntOut)=const_cast<double *>(Intergrals);
    return NInts;
 }

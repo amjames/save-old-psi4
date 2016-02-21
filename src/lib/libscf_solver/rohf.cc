@@ -30,7 +30,6 @@
 #include <psifiles.h>
 #include <libciomr/libciomr.h>
 #include <libpsio/psio.hpp>
-#include <libchkpt/chkpt.hpp>
 #include <libiwl/iwl.hpp>
 #include <libqt/qt.h>
 #include <libmints/mints.h>
@@ -49,14 +48,8 @@ using namespace boost;
 
 namespace psi { namespace scf {
 
-ROHF::ROHF(Options& options, boost::shared_ptr<PSIO> psio, boost::shared_ptr<Chkpt> chkpt)
-    : HF(options, psio, chkpt)
-{
-    common_init();
-}
-
-ROHF::ROHF(Options& options, boost::shared_ptr<PSIO> psio)
-    : HF(options, psio)
+ROHF::ROHF(SharedWavefunction ref_wfn, Options& options, boost::shared_ptr<PSIO> psio)
+    : HF(ref_wfn, options, psio)
 {
     common_init();
 }
@@ -68,7 +61,7 @@ void ROHF::common_init()
 {
     Fa_      = SharedMatrix(factory_->create_matrix("Alpha Fock Matrix"));
     Fb_      = SharedMatrix(factory_->create_matrix("Beta Fock Matrix"));
-    Feff_    = SharedMatrix(factory_->create_matrix("F effective (MO basis)"));
+    moFeff_  = SharedMatrix(factory_->create_matrix("F effective (MO basis)"));
     soFeff_  = SharedMatrix(factory_->create_matrix("F effective (orthogonalized SO basis)"));
     Ct_      = SharedMatrix(factory_->create_matrix("Orthogonalized Molecular orbitals"));
     Ca_      = SharedMatrix(factory_->create_matrix("Molecular orbitals"));
@@ -82,12 +75,13 @@ void ROHF::common_init()
     Gb_      = SharedMatrix(factory_->create_matrix("G beta"));
     Dt_old_  = SharedMatrix(factory_->create_matrix("D alpha old"));
     Dt_      = SharedMatrix(factory_->create_matrix("D beta old"));
-    moFa_    = SharedMatrix(factory_->create_matrix("MO Basis alpha Fock Matrix"));
-    moFb_    = SharedMatrix(factory_->create_matrix("MO Basis beta Fock Matrix"));
+    moFa_    = SharedMatrix(factory_->create_matrix("MO alpha Fock Matrix (MO basis)"));
+    moFb_    = SharedMatrix(factory_->create_matrix("MO beta Fock Matrix (MO basis)"));
 
     epsilon_a_ = SharedVector(factory_->create_vector());
     epsilon_b_ = epsilon_a_;
-    restricted_ = true;
+    same_a_b_dens_ = false;
+    same_a_b_orbs_ = true;
 }
 
 void ROHF::semicanonicalize()
@@ -110,7 +104,7 @@ void ROHF::semicanonicalize()
     Cb_->set_name("Beta semicanonical orbitals");
     epsilon_a_->set_name("Alpha semicanonical orbital energies");
     epsilon_b_->set_name("Beta semicanonical orbital energies");
-    restricted_ = false;
+    same_a_b_orbs_ = false;
 
     SharedMatrix Crohf(Ca_->clone());
     SharedMatrix evecs;
@@ -234,28 +228,28 @@ void ROHF::finalize()
     //
     // --EGH
     //
-    // Let's build the MO Lagrangian in Feff_
+    // Let's build the MO Lagrangian in moFeff_
     // ...I'm assuming these bitches are square
-    Feff_->zero();
+    moFeff_->zero();
     moFa_->transform(Fa_, Ca_);
     moFb_->transform(Fb_, Ca_);
     for (int h=0; h<nirrep_; ++h) {
-        for (int m=0; m<Feff_->rowdim(h); ++m) {
+        for (int m=0; m<moFeff_->rowdim(h); ++m) {
             double tval;
             for (int i=0; i<doccpi_[h]; ++i) {
                 tval = moFa_->get(h, m, i);
                 tval += moFb_->get(h, m, i);
-                Feff_->set(h, m, i, tval);
+                moFeff_->set(h, m, i, tval);
             }
             for (int i=doccpi_[h]; i<doccpi_[h]+soccpi_[h]; ++i) {
                 tval = moFa_->get(h, m, i);
-                Feff_->set(h, m, i, tval);
+                moFeff_->set(h, m, i, tval);
             }
         }
     }
-    Lagrangian_->back_transform(Feff_, Ca_);
+    Lagrangian_->back_transform(moFeff_, Ca_);
 
-    Feff_.reset();
+    moFeff_.reset();
     Ka_.reset();
     Kb_.reset();
     Ga_.reset();
@@ -285,7 +279,7 @@ void ROHF::compute_orbital_gradient(bool save_diis)
     Dimension dim_zero = Dimension(nirrep_, "Zero Dim");
     Dimension noccpi = doccpi_ + soccpi_;
     Dimension virpi = nmopi_ - doccpi_;
-    View vMOgradient(Feff_, noccpi, virpi, dim_zero, doccpi_);
+    View vMOgradient(moFeff_, noccpi, virpi, dim_zero, doccpi_);
     SharedMatrix MOgradient = vMOgradient();
 
     // Zero out act-act part
@@ -300,10 +294,11 @@ void ROHF::compute_orbital_gradient(bool save_diis)
     }
 
     // Grab inact-act and act-vir orbs
-    View vCia(Ct_, nsopi_, noccpi, dim_zero, dim_zero);
+    // Ct_ is actuall (nmo x nmo)
+    View vCia(Ct_, nmopi_, noccpi, dim_zero, dim_zero);
     SharedMatrix Cia = vCia();
 
-    View vCav(Ct_, nsopi_, virpi, dim_zero, doccpi_);
+    View vCav(Ct_, nmopi_, virpi, dim_zero, doccpi_);
     SharedMatrix Cav = vCav();
 
     // Back transform MOgradient
@@ -383,36 +378,36 @@ void ROHF::form_F()
      *  open    | 2(Fc-Fo)     Fc      2Fo
      *  virtual |    Fc       2Fo       Fc
      */
-    Feff_->copy(moFa_);
-    Feff_->add(moFb_);
-    Feff_->scale(0.5);
+    moFeff_->copy(moFa_);
+    moFeff_->add(moFb_);
+    moFeff_->scale(0.5);
     for (int h = 0; h < nirrep_; ++h) {
         for (int i = doccpi_[h]; i < doccpi_[h] + soccpi_[h]; ++i) {
             // Set the open/closed portion
             for (int j = 0; j < doccpi_[h]; ++j) {
                 double val = moFb_->get(h, i, j);
-                Feff_->set(h, i, j, val);
-                Feff_->set(h, j, i, val);
+                moFeff_->set(h, i, j, val);
+                moFeff_->set(h, j, i, val);
             }
             // Set the open/virtual portion
             for (int j = doccpi_[h] + soccpi_[h]; j < nmopi_[h]; ++j) {
                 double val = moFa_->get(h, i, j);
-                Feff_->set(h, i, j, val);
-                Feff_->set(h, j, i, val);
+                moFeff_->set(h, i, j, val);
+                moFeff_->set(h, j, i, val);
             }
         }
     }
 
-    // Form the orthogonalized SO basis Feff matrix, for use in DIIS
-    soFeff_->copy(Feff_);
-    soFeff_->back_transform(Ct_);
+    // Form the orthogonalized SO basis moFeff matrix, for use in DIIS
+    diag_F_temp_->gemm(false, false, 1.0, Ct_, moFeff_, 0.0);
+    soFeff_->gemm(false, true, 1.0, diag_F_temp_, Ct_, 0.0);
 
     if (debug_) {
         Fa_->print();
         Fb_->print();
         moFa_->print();
         moFb_->print();
-        Feff_->print();
+        moFeff_->print();
         soFeff_->print();
     }
 }
@@ -431,15 +426,29 @@ void ROHF::form_C()
         Ct_->eivprint(epsilon_a_);
     }
 }
-
+void ROHF::prepare_canonical_orthogonalization()
+{
+    // Some matrix size changes if we canonical orthogonalization
+    Ct_->init(nirrep_, nmopi_, nmopi_);
+    moFa_->init(nirrep_, nmopi_, nmopi_);
+    moFb_->init(nirrep_, nmopi_, nmopi_);
+    moFeff_->init(nirrep_, nmopi_, nmopi_);
+    soFeff_->init(nirrep_, nmopi_, nmopi_); // This is in the "Orthogonalized SO" basis
+}
 void ROHF::form_initial_C()
 {
     // In ROHF the creation of the C matrix depends on the previous iteration's C
     // matrix. Here we use Fa to generate the first C, where Fa was set by guess()
     // to either H or the GWH Hamiltonian.
-    Fa_->transform(X_);
-    Fa_->diagonalize(Ct_, epsilon_a_);
-    find_occupation();
+
+    //Form F' = X'FX for canonical orthogonalization
+    diag_temp_->gemm(true, false, 1.0, X_, Fa_, 0.0);
+    diag_F_temp_->gemm(false, false, 1.0, diag_temp_, X_, 0.0);
+
+    //Form C' = eig(F')
+    diag_F_temp_->diagonalize(Ct_, epsilon_a_);
+
+    //Form C = XC'
     Ca_->gemm(false, false, 1.0, X_, Ct_, 0.0);
 
     if (print_ > 3)
@@ -488,7 +497,7 @@ double ROHF::compute_initial_E()
 
 double ROHF::compute_E()
 {
-    double one_electron_E = Da_->vector_dot(H_) + Db_->vector_dot(H_);;
+    double one_electron_E = Da_->vector_dot(H_) + Db_->vector_dot(H_);
     double two_electron_E = 0.5 * (Da_->vector_dot(Fa_) + Db_->vector_dot(Fb_) - one_electron_E);
 
     energies_["Nuclear"] = nuclearrep_;
@@ -504,6 +513,457 @@ double ROHF::compute_E()
     double Eelec = 0.5 * (DH + DFa + DFb);
     double Etotal = nuclearrep_ + Eelec;
     return Etotal;
+}
+
+void ROHF::Hx(SharedMatrix x, SharedMatrix ret)
+{
+    // Index reference
+    // left = IAJB + IAjb, right = iajb + iaJB
+    // i = docc, a = socc, p = pure virtual
+    // o = docc + socc, v = socc + vir
+
+    // Spaces
+    Dimension occpi = doccpi_ + soccpi_;
+    Dimension virpi = nmopi_ - doccpi_;
+    Dimension pvir  = nmopi_ - doccpi_ - soccpi_;
+
+    if (ret->rowspi() != occpi){
+        throw PSIEXCEPTION("ROHF:Hx First dimension of rotation matrix is not correct.");
+    }
+    if (ret->colspi() != virpi){
+        throw PSIEXCEPTION("ROHF:Hx Second dimension of rotation matrix is not correct.");
+    }
+
+    // => Effective one electron part <= //
+    SharedMatrix Hx_left(new Matrix("Partial Hx tensor left", ret->rowspi(), ret->colspi()));
+    SharedMatrix Hx_right(new Matrix("Partial Hx tensor right", ret->rowspi(), ret->colspi()));
+
+    // Passing these guys is annoying, pretty cheap to rebuild
+    Dimension dim_zero = Dimension(nirrep_, "Zero Dim");
+
+    View vCocc(Ca_, nsopi_, ret->rowspi(), dim_zero, dim_zero);
+    SharedMatrix Cocc = vCocc();
+    Cocc->set_name("Cocc");
+
+    View vCvir(Ca_, nsopi_, ret->colspi(), dim_zero, doccpi_);
+    SharedMatrix Cvir = vCvir();
+    Cvir->set_name("Cvir");
+
+    for (size_t h=0; h<nirrep_; h++){
+        if (!occpi[h] || !virpi[h]) continue;
+
+        double** leftp = Hx_left->pointer(h);
+        double** rightp = Hx_right->pointer(h);
+        double** xp = x->pointer(h);
+        double** Fap = moFa_->pointer(h);
+        double** Fbp = moFb_->pointer(h);
+
+        // left_ov += 0.5 * x_op Fa_pv
+        C_DGEMM('N','N',occpi[h],virpi[h],pvir[h],0.5,
+                (xp[0] + soccpi_[h]),virpi[h],
+                (Fap[occpi[h]]+doccpi_[h]),nmopi_[h],
+                0.0,leftp[0],virpi[h]);
+
+        // left_ov -= Fa_oo x_ov
+        C_DGEMM('N','N',occpi[h],virpi[h],occpi[h],-0.5,
+                Fap[0],nmopi_[h],
+                xp[0],virpi[h],
+                1.0,leftp[0],virpi[h]);
+
+        // right_ov += 0.5 * x_ov Fb_vv
+        C_DGEMM('N','N',occpi[h],virpi[h],virpi[h],0.5,
+                xp[0],virpi[h],
+                (Fbp[doccpi_[h]]+doccpi_[h]),nmopi_[h],
+                0.0,rightp[0],virpi[h]);
+
+        // right_ov -= Fb_oi x_iv
+        C_DGEMM('N','N',occpi[h],virpi[h],doccpi_[h],-0.5,
+                Fbp[0],nmopi_[h],
+                xp[0],virpi[h],
+                1.0,rightp[0],virpi[h]);
+
+        // Socc terms
+        // left_av += 0.5 * x_oa.T Fb_ov
+        C_DGEMM('T','N',soccpi_[h],virpi[h],occpi[h],0.5,
+                xp[0],virpi[h],
+                (Fbp[0]+doccpi_[h]),nmopi_[h],
+                1.0,leftp[doccpi_[h]],virpi[h]);
+
+        // right_oa += 0.5 * Fb_op x_ap.T
+        C_DGEMM('N','T',occpi[h],soccpi_[h],pvir[h],0.5,
+                (Fbp[0]+occpi[h]),nmopi_[h],
+                (xp[doccpi_[h]] + soccpi_[h]),virpi[h],
+                1.0,rightp[0],virpi[h]);
+
+    }
+
+    // => Two electron part <= //
+    std::vector<SharedMatrix>& Cl = jk_->C_left();
+    std::vector<SharedMatrix>& Cr = jk_->C_right();
+    Cl.clear();
+    Cr.clear();
+
+    // If scf_type is DF we can do some extra JK voodo
+    if ((options_.get_str("SCF_TYPE") == "DF") || (options_.get_str("SCF_TYPE") == "CD")){
+
+        View vCdocc(Ca_, nsopi_, doccpi_, dim_zero, dim_zero);
+        SharedMatrix Cdocc = vCdocc();
+        Cdocc->set_name("Cdocc");
+
+        View vCsocc(Ca_, nsopi_, soccpi_, dim_zero, doccpi_);
+        SharedMatrix Csocc = vCsocc();
+        Csocc->set_name("Csocc");
+
+        SharedMatrix Cr_i(new Matrix("Cright for docc", nsopi_,  doccpi_));
+        SharedMatrix Cr_a(new Matrix("Cright for socc", nsopi_,  soccpi_));
+        SharedMatrix Cl_a(new Matrix("Cleft for socc", nsopi_,  soccpi_));
+
+        for (size_t h=0; h<nirrep_; h++){
+            if (!nsopi_[h]) continue;
+
+            double** xp = x->pointer(h);
+            double** Cp = Ca_->pointer(h);
+            double** Cr_ip = Cr_i->pointer(h);
+            double** Cr_ap = Cr_a->pointer(h);
+            double** Cl_ap = Cl_a->pointer(h);
+
+            if (doccpi_[h] && pvir[h]){
+                // C_lambda,i = C_lambda,p x_ip.T
+                C_DGEMM('N','T',nsopi_[h],doccpi_[h],pvir[h],1.0,
+                        Cp[0]+occpi[h],nmopi_[h],
+                        (xp[0]+soccpi_[h]),virpi[h],
+                        0.0,Cr_ip[0],doccpi_[h]);
+            }
+
+            if (soccpi_[h] && pvir[h]){
+                // C_lambda,a = C_lambda,p x_ap.T
+                C_DGEMM('N','T',nsopi_[h],soccpi_[h],pvir[h],1.0,
+                        Cp[0]+occpi[h],nmopi_[h],
+                        (xp[doccpi_[h]]+soccpi_[h]),virpi[h],
+                        0.0,Cr_ap[0],soccpi_[h]);
+            }
+
+            if (soccpi_[h] && doccpi_[h]){
+                // C_lambda,a = C_lambda,i x_ia
+                C_DGEMM('N','N',nsopi_[h],soccpi_[h],doccpi_[h],1.0,
+                        Cp[0],nmopi_[h],
+                        xp[0],virpi[h],
+                        0.0,Cl_ap[0],soccpi_[h]);
+            }
+        }
+
+        Cl.push_back(Cdocc);
+        Cl.push_back(Csocc);
+        Cl.push_back(Cl_a);
+
+        Cr.push_back(Cr_i);
+        Cr.push_back(Cr_a);
+        Cr.push_back(Csocc);
+
+        jk_->compute();
+
+        // Just in case someone only clears out Cleft and gets very strange errors
+        Cl.clear();
+        Cr.clear();
+        Cdocc.reset();
+        Csocc.reset();
+        Cr_i.reset();
+        Cr_a.reset();
+        Cl_a.reset();
+
+        const std::vector<SharedMatrix>& J = jk_->J();
+        const std::vector<SharedMatrix>& K = jk_->K();
+
+        // Collect left terms
+        J[0]->scale(2.0);
+        J[0]->add(J[1]);
+        J[0]->add(J[2]);
+        J[1]->copy(J[0]);
+
+        K[2]->add(K[0]);
+        K[0]->add(K[1]);
+
+        K[0]->scale(0.5);
+        J[0]->subtract(K[0]);
+        J[0]->subtract(K[0]->transpose());
+
+        // Collect right terms
+        K[2]->scale(0.5);
+        J[1]->subtract(K[2]);
+        J[1]->subtract(K[2]->transpose());
+
+        // Transform to MO basis and add to exsisting
+        SharedMatrix half_trans(new Matrix("half_trans temp space", occpi, nsopi_));
+
+        half_trans->gemm(true, false, 1.0, Cocc, J[0], 0.0);
+        Hx_left->gemm(false, false, 1.0, half_trans, Cvir, 1.0);
+
+        half_trans->gemm(true, false, 1.0, Cocc, J[1], 0.0);
+        Hx_right->gemm(false, false, 1.0, half_trans, Cvir, 1.0);
+
+        half_trans.reset();
+
+    }
+    else{
+        View vCdocc(Ca_, nsopi_, doccpi_, dim_zero, dim_zero);
+        SharedMatrix Cdocc = vCdocc();
+        Cdocc->set_name("Cdocc");
+
+        Cl.push_back(Cocc);
+        Cl.push_back(Cdocc);
+
+        SharedMatrix Cr_a(new Matrix("Cright for alpha", nsopi_,  occpi));
+        SharedMatrix Cr_b(new Matrix("Cright for beta", nsopi_,  doccpi_));
+
+        for (size_t h=0; h<nirrep_; h++){
+            if (!nsopi_[h]) continue;
+
+            double** xp = x->pointer(h);
+            double** Cp = Ca_->pointer(h);
+            double** Cr_ap = Cr_a->pointer(h);
+            double** Cr_bp = Cr_b->pointer(h);
+
+            if (occpi[h] && pvir[h]){
+                // C_lambda,o = C_lambda,p x_op.T
+                C_DGEMM('N','T',nsopi_[h],occpi[h],pvir[h],1.0,
+                        Cp[0]+occpi[h],nmopi_[h],
+                        (xp[0]+soccpi_[h]), virpi[h],
+                        0.0,Cr_ap[0],occpi[h]);
+            }
+
+            if (doccpi_[h] && virpi[h]){
+                // C_lambda,i = C_lambda,p x_ip.T
+                C_DGEMM('N','T',nsopi_[h],doccpi_[h],virpi[h],1.0,
+                        Cp[0]+doccpi_[h],nmopi_[h],
+                        xp[0],virpi[h],
+                        0.0,Cr_bp[0],doccpi_[h]);
+            }
+        }
+
+        Cr.push_back(Cr_a);
+        Cr.push_back(Cr_b);
+
+        jk_->compute();
+
+        // Just in case someone only clears out Cleft and gets very strange errors
+        Cl.clear();
+        Cr.clear();
+        Cr_a.reset();
+        Cr_b.reset();
+        Cdocc.reset();
+
+        const std::vector<SharedMatrix>& J = jk_->J();
+        const std::vector<SharedMatrix>& K = jk_->K();
+
+        // Collect left terms
+        J[0]->add(J[1]);
+        J[1]->copy(J[0]);
+
+        K[0]->scale(0.5);
+        J[0]->subtract(K[0]);
+        J[0]->subtract(K[0]->transpose());
+
+        // Collect right terms
+        K[1]->scale(0.5);
+        J[1]->subtract(K[1]);
+        J[1]->subtract(K[1]->transpose());
+
+        // Transform to MO basis and add to exsisting
+        SharedMatrix half_trans(new Matrix("half_trans temp space", occpi, nsopi_));
+
+        half_trans->gemm(true, false, 1.0, Cocc, J[0], 0.0);
+        Hx_left->gemm(false, false, 1.0, half_trans, Cvir, 1.0);
+
+        half_trans->gemm(true, false, 1.0, Cocc, J[1], 0.0);
+        Hx_right->gemm(false, false, 1.0, half_trans, Cvir, 1.0);
+
+        half_trans.reset();
+    }
+
+    // Zero out socc-socc terms
+    for (size_t h=0; h<nirrep_; h++){
+        if (!occpi[h] || !virpi[h]) continue;
+
+        double** leftp = Hx_left->pointer(h);
+        double** rightp = Hx_right->pointer(h);
+
+        for (size_t i=0; i < soccpi_[h]; i++){
+            for (size_t j=0; j < occpi[h]; j++){
+                leftp[j][i] = 0.0;
+            }
+            for (size_t j=0; j < virpi[h]; j++){
+                rightp[doccpi_[h] + i][j] = 0.0;
+            }
+        }
+    }
+
+    ret->zero();
+    ret->add(Hx_left);
+    ret->add(Hx_right);
+    ret->scale(4.0);
+
+    Hx_left.reset(); Hx_right.reset();
+    Cocc.reset(); Cvir.reset();
+}
+
+int ROHF::soscf_update()
+{
+    time_t start, stop;
+    start = time(NULL);
+
+    // => Build gradient and preconditioner <= //
+
+    // Only the inact-act, inact-vir, and act-vir rotations are non-redundant
+    Dimension dim_zero = Dimension(nirrep_, "Zero Dim");
+    Dimension occpi = doccpi_ + soccpi_;
+    Dimension virpi = nmopi_ - doccpi_;
+
+    View vMOgradient(moFeff_, occpi, virpi, dim_zero, doccpi_);
+    SharedMatrix Gradient = vMOgradient();
+    Gradient->scale(-4.0);
+    SharedMatrix Precon = SharedMatrix(new Matrix("Precon", nirrep_, occpi, virpi));
+
+    for (size_t h=0; h < nirrep_; h++){
+        if (!occpi[h] || !virpi[h]) continue;
+
+        double** preconp = Precon->pointer(h);
+        double** gradientp = Gradient->pointer(h);
+        double** feffp = moFeff_->pointer(h);
+
+        // Precon
+        for (size_t i=0; i < occpi[h]; i++){
+            for (size_t j=0; j < virpi[h]; j++){
+                // Should be scaled but 3.5 works better (4 * 0.875 or GWH coef)
+                preconp[i][j] = -3.5 * (feffp[i][i] - feffp[doccpi_[h] + j][doccpi_[h] + j]);
+            }
+        }
+
+        // Divide docc-socc and socc-vir by two
+        // Fix socc-socc term to avoid divide by zero errors
+        for (size_t i=0; i < soccpi_[h]; i++){
+            for (size_t j=0; j < occpi[h]; j++){
+                gradientp[j][i] *= 0.5;
+                preconp[j][i] *= 0.5;
+            }
+            for (size_t j=0; j < virpi[h]; j++){
+                gradientp[doccpi_[h] + i][j] *= 0.5;
+                preconp[doccpi_[h] + i][j] *= 0.5;
+            }
+            for (size_t j=0; j < soccpi_[h]; j++){
+                preconp[doccpi_[h] + i][j] = 1.0;
+                gradientp[doccpi_[h] + i][j] = 0.0;
+            }
+        }
+    }
+
+    // Make sure the MO gradient is reasonably small
+    if (Gradient->absmax() > 0.3){
+        if (print_ > 1){
+            outfile->Printf("    Gradient element too large for SOSCF, using DIIS.\n");
+        }
+        return 0;
+    }
+
+    if (soscf_print_){
+        outfile->Printf("\n");
+        outfile->Printf("    ==> SOROHF Iterations <==\n");
+        outfile->Printf("    Maxiter     = %11d\n", soscf_max_iter_);
+        outfile->Printf("    Miniter     = %11d\n", soscf_min_iter_);
+        outfile->Printf("    Convergence = %11.3E\n", soscf_conv_);
+        outfile->Printf("    ---------------------------------------\n");
+        outfile->Printf("    %-4s   %11s     %10s\n", "Iter", "Residual RMS", "Time [s]");
+        outfile->Printf("    ---------------------------------------\n");
+    }
+
+    // => Initial CG guess <= //
+    SharedMatrix x = Gradient->clone();
+    x->set_name("Current ROHF CG Guess");
+    x->apply_denominator(Precon);
+
+    // Calc hessian vector product, find residual and conditioned residual
+    SharedMatrix r = Gradient->clone();
+    SharedMatrix Ap = SharedMatrix(new Matrix("Ap", nirrep_, occpi, virpi));
+    Hx(x, Ap);
+    r->subtract(Ap);
+
+    // Print iteration 0 timings and rms
+    double rconv = r->vector_dot(r);
+    double grad_rms = Gradient->vector_dot(Gradient);
+    if (grad_rms < 1.e-14){
+        grad_rms = 1.e-14; // Prevent rel denom from being too small
+    }
+    double rms = sqrt(rconv / grad_rms);
+    stop = time(NULL);
+    if (soscf_print_){
+        outfile->Printf("    %-5s %11.3E %10ld\n", "Guess", rms, stop-start);
+    }
+
+    // Build new p and z vectors
+    SharedMatrix z = r->clone();
+    z->apply_denominator(Precon);
+    SharedMatrix p = z->clone();
+
+    // => CG iterations <= //
+    int fock_builds = 1;
+    for (int cg_iter=1; cg_iter<soscf_max_iter_; cg_iter++) {
+
+        // Calc hessian vector product
+        Hx(p, Ap);
+        fock_builds += 1;
+
+        // Find factors and scale
+        double rzpre = r->vector_dot(z);
+        double alpha = rzpre / p->vector_dot(Ap);
+        if (std::isnan(alpha)){
+            outfile->Printf("ROHF::SOSCF Warning CG alpha is zero/nan. Stopping CG.\n");
+            alpha = 0.0;
+        }
+
+        x->axpy(alpha, p);
+        r->axpy(-alpha, Ap);
+
+        // Get residual
+        double rconv = r->sum_of_squares();
+        double rms = sqrt(rconv / grad_rms);
+        stop = time(NULL);
+        if (soscf_print_){
+            outfile->Printf("    %-5d %11.3E %10ld\n", cg_iter, rms, stop-start);
+        }
+
+        // Check convergence
+        if (((rms < soscf_conv_) && (cg_iter >= soscf_min_iter_)) || (alpha==0.0)) {
+            break;
+        }
+
+        // Update p and z
+        z->copy(r);
+        z->apply_denominator(Precon);
+
+        double beta = r->vector_dot(z) / rzpre;
+
+        p->scale(beta);
+        p->add(z);
+
+    }
+
+    if (soscf_print_){
+        outfile->Printf("    ---------------------------------------\n");
+        outfile->Printf("\n");
+    }
+
+    // => Rotate orbitals <= //
+    rotate_orbitals(Ca_, x);
+    rotate_orbitals(Ct_, x);
+
+    // // => Cleanup <= //
+    Precon.reset();
+    Gradient.reset();
+    Ap.reset();
+    z.reset();
+    r.reset();
+    p.reset();
+
+    return fock_builds;
 }
 
 
@@ -557,10 +1017,9 @@ bool ROHF::stability_analysis()
         std::vector<boost::shared_ptr<MOSpace> > spaces;
         spaces.push_back(MOSpace::occ);
         spaces.push_back(MOSpace::vir);
-        // Ref wfn is really "this"
-        boost::shared_ptr<Wavefunction> wfn = Process::environment.wavefunction();
 #define ID(x) ints.DPD_ID(x)
-        IntegralTransform ints(wfn, spaces, IntegralTransform::Restricted, IntegralTransform::DPDOnly,
+        IntegralTransform ints(shared_from_this(), spaces, IntegralTransform::Restricted,
+                               IntegralTransform::DPDOnly,
                                IntegralTransform::QTOrder, IntegralTransform::None);
         ints.set_keep_dpd_so_ints(true);
         ints.transform_tei(MOSpace::occ, MOSpace::vir, MOSpace::occ, MOSpace::vir);

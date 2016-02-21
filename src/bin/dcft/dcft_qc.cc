@@ -52,10 +52,13 @@ DCFTSolver::run_qc_dcft()
     int cycle_jacobi = 0;
 
     // Copy the reference orbitals and to use them as the reference for the orbital rotation
+    outfile->Printf("About to Copied C matrices\n");
     old_ca_->copy(Ca_);
     old_cb_->copy(Cb_);
+    outfile->Printf("Copied C matrices\n");
 
     orbitals_convergence_ = compute_scf_error_vector();
+    outfile->Printf("Compute scf_error_vector\n");
 
     // Set up the DIIS manager
     DIISManager diisManager(maxdiis_, "DCFT DIIS vectors");
@@ -101,7 +104,7 @@ DCFTSolver::run_qc_dcft()
         // Add lambda energy to the DCFT total energy
         new_total_energy_ += lambda_energy_;
         // Check convergence of the total DCFT energy
-        energyConverged_ = fabs(old_total_energy_ - new_total_energy_) < cumulant_threshold_;
+        energyConverged_ = fabs(old_total_energy_ - new_total_energy_) < energy_threshold_;
         // Determine the independent pairs (IDPs) and create array for the orbital and cumulant gradient in the basis of IDPs
         form_idps();
         if (nidp_ != 0) {
@@ -172,8 +175,6 @@ DCFTSolver::run_qc_dcft()
             if (orbital_idp_ != 0) {
                 // Update the density
                 densityConverged_ = update_scf_density() < orbitals_threshold_;
-                // Write orbitals to the checkpoint file
-                write_orbitals_to_checkpoint();
                 // Transform two-electron integrals to the MO basis using new orbitals, build denominators
                 // TODO: Transform_integrals shouldn't call build denominators for the QC alogorithm
                 transform_integrals();

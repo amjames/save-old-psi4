@@ -1,8 +1,8 @@
 #! Unrestricted DF-DCFT ODC-12 gradient for O2 with cc-pVTZ/cc-pVTZ-RI standard/auxiliary basis set
 
 ref_grads = [
-          [ 0.000000000000,     0.000000000000,    -0.037283812657],
-          [ 0.000000000000,     0.000000000000,     0.037283812657]
+          [ 0.000000000000,     0.000000000000,    -0.037277060707],
+          [ 0.000000000000,     0.000000000000,     0.037277060707]
           ]
 ref = psi4.Matrix(2, 3)
 ref.set(ref_grads)
@@ -31,8 +31,6 @@ set globals {
     diis_min_vecs            1
 }
 
-gradient('dcft')
-
-grad = psi4.wavefunction().gradient()
+grad = gradient('dcft')
 compare_matrices(ref, grad, 8, "DF-UODC-12 analytic gradient (ao_basis=none)")
 clean()

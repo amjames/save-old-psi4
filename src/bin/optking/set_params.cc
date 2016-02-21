@@ -678,8 +678,8 @@ void set_params(void)
   Opt_params.fix_tors_near_pi = _pi / 2;
 
 // torsional angles will not be computed if the contained bond angles are within
-// this many radians of zero or 180. (< ~10 and > ~170 degrees)
-  Opt_params.tors_angle_lim = 0.17;
+// this many radians of zero or 180. (< ~1 and > ~179 degrees)
+  Opt_params.tors_angle_lim = 0.017;
 
 // only used for determining which atoms in a fragment are acceptable for use
 // as reference atoms.  We avoid collinear sets.
@@ -691,6 +691,10 @@ void set_params(void)
 
 // if bend exceeds this value, then also create linear bend complement
   Opt_params.linear_bend_threshold = 3.05; // about 175 degrees
+
+// If bend is smaller than this value, then never fix its associated vectors
+// this allows iterative steps through and near zero degrees. 
+  Opt_params.small_bend_fix_threshold = 0.35;
 
 // threshold for which entries in diagonalized redundant matrix are kept and inverted
 // while computing a generalized inverse of a matrix
