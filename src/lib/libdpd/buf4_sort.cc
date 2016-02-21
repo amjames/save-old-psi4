@@ -1256,7 +1256,9 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
             else out_rows_left = OutBuf.params->rowtot[Gpq] % out_rows_per_bucket;
 
             /* allocate space for the bucket of rows */
+            outfile->Printf("\t  buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);");
             buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);
+            outfile->Printf("--Done!\n");
 
             for(n=0; n< (out_rows_left ? out_nbuckets-1 : out_nbuckets); n++) {
 
@@ -1266,15 +1268,17 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 Gcol = Grow^my_irrep;
 
                 /* determine how many rows of InBuf we can store in the other half of the core */
-                in_rows_per_bucket = dpd_memfree()/(2 * InBuf->params->rowtot[Grow]);
+                in_rows_per_bucket = dpd_memfree()/(2 * InBuf->params->coltot[Gcol]);
                 if(in_rows_per_bucket > InBuf->params->rowtot[Grow])
-                  in_rows_per_bucket > InBuf->params->rowtot[Grow];
+                  in_rows_per_bucket = InBuf->params->rowtot[Grow];
                 in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
                 if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
                 else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
 
                 /*allocate space for the bucket of rows */
+                outfile->Printf(" buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );\t ");
                 buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );
+                outfile->Printf("--Done!\n");
 
                 for(m =0; m < (in_rows_left ? in_nbuckets-1 : in_nbuckets); m++ ){
 
@@ -1354,7 +1358,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 /* determine how many rows of InBuf we can store in the other half of the core */
                 in_rows_per_bucket = dpd_memfree()/(2 * InBuf->params->rowtot[Grow]);
                 if(in_rows_per_bucket > InBuf->params->rowtot[Grow])
-                  in_rows_per_bucket > InBuf->params->rowtot[Grow];
+                  in_rows_per_bucket = InBuf->params->rowtot[Grow];
                 in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
                 if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
                 else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
