@@ -91,6 +91,7 @@ DPD::dpd_block_matrix(size_t n, size_t m)
             if(file4_cache_del_low()) {
                 file4_cache_print("outfile");
                 outfile->Printf( "dpd_block_matrix: n = %zd  m = %zd\n", n, m);
+                outfile->Printf(" Need %d, only have %d\n",size, dpd_main.memory );
                 dpd_error("dpd_block_matrix: No memory left.", "outfile");
             }
         }
@@ -100,6 +101,7 @@ DPD::dpd_block_matrix(size_t n, size_t m)
             if(file4_cache_del_lru()) {
                 file4_cache_print("outfile");
                 outfile->Printf( "dpd_block_matrix: n = %zd  m = %zd\n", n, m);
+                outfile->Printf(" Need %d, only have %d\n",size, dpd_main.memory );
                 dpd_error("dpd_block_matrix: No memory left.", "outfile");
             }
         }
@@ -117,6 +119,7 @@ DPD::dpd_block_matrix(size_t n, size_t m)
     if((A = (double **) malloc(n * sizeof(double *)))==NULL) {
         outfile->Printf("dpd_block_matrix: trouble allocating memory \n");
         outfile->Printf("n = %zd  m = %zd\n",n, m);
+                outfile->Printf(" Need %d, only have %d\n",size, dpd_main.memory );
         exit(PSI_RETURN_FAILURE);
     }
 
@@ -133,6 +136,7 @@ DPD::dpd_block_matrix(size_t n, size_t m)
             if(file4_cache_del_low()) {
                 file4_cache_print("outfile");
                 outfile->Printf( "dpd_block_matrix: n = %zd  m = %zd\n", n, m);
+                outfile->Printf(" Need %d, only have %d\n",size, dpd_main.memory );
                 dpd_error("dpd_block_matrix: No memory left.", "outfile");
             }
         }
@@ -142,6 +146,7 @@ DPD::dpd_block_matrix(size_t n, size_t m)
             if(file4_cache_del_lru()) {
                 file4_cache_print("outfile");
                 outfile->Printf( "dpd_block_matrix: n = %zd  m = %zd\n", n, m);
+                outfile->Printf(" Need %d, only have %d\n",size, dpd_main.memory );
                 dpd_error("dpd_block_matrix: No memory left.", "outfile");
             }
         }
