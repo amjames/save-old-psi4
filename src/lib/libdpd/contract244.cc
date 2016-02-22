@@ -274,12 +274,12 @@ int DPD::contract244(dpdfile2 *X, dpdbuf4 *Y, dpdbuf4 *Z, int sum_X, int sum_Y,
                     else if ( Xtrans &&  Ytrans ) {Hx=Hz^GX;    Hy = Hz^GX^GY; }
 
 #ifdef DPD_DEBUG
-                    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
-                            (xcol[Hz] != yrow[Hz])) {
-                        outfile->Printf( "** Alignment error in contract244 **\n");
-                        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hzbuf,Hz);
-                        dpd_error("dpd_contract244", "outfile");
-                    }
+                //    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
+                //            (xcol[Hz] != yrow[Hz])) {
+                //        outfile->Printf( "** Alignment error in contract244 **\n");
+                //        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hzbuf,Hz);
+                //        dpd_error("dpd_contract244", "outfile");
+                //    }
 #endif
                     /* outfile->Printf("Hz %d, Hx %d, Hy %d, numrows %d, numlinks %d, numcols %d\n",
          Hz, Hx, Hy, numrows[Hz],numlinks[Hx],numcols[Hz]); */

@@ -109,7 +109,7 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             Xmat = Xt.shift.matrix[hxbuf];
             Xtrans = 1;
             numlinks = Xt.shift.rowtot[hxbuf];
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             xrow = Xt.shift.coltot[hxbuf];
             xcol = Xt.shift.rowtot[hxbuf];
 #endif
@@ -124,10 +124,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             Xmat = Xt.shift.matrix[hxbuf];
             Xtrans = 0;
             numlinks = Xt.shift.coltot[hxbuf];
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             xrow = Xt.shift.rowtot[hxbuf];
             xcol = Xt.shift.coltot[hxbuf];
-#endif	  
+#endif
         }
         else if(target_X == 3) {
             buf4_mat_irrep_init(X, hxbuf);
@@ -137,10 +137,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             Xmat = X->shift.matrix[hxbuf];
             Xtrans = 1;
             numlinks = X->shift.rowtot[hxbuf];
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             xrow = X->shift.coltot[hxbuf];
             xcol = X->shift.rowtot[hxbuf];
-#endif	    
+#endif
         }
         else {
             outfile->Printf( "Junk X index %d in dpd_contract442\n", target_X);
@@ -161,10 +161,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             buf4_mat_irrep_shift13(Y, hybuf);
             Ymat = Y->shift.matrix[hybuf];
             Ytrans = 1;
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             yrow = Y->shift.coltot[hybuf];
             ycol = Y->shift.rowtot[hybuf];
-#endif		  
+#endif
         }
         else if(target_Y == 1) {
             buf4_mat_irrep_init(Y, hybuf);
@@ -176,10 +176,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             rking = 1;
             Ymat = Yt.shift.matrix[hybuf];
             Ytrans = 0;
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             yrow = Yt.shift.rowtot[hybuf];
             ycol = Yt.shift.coltot[hybuf];
-#endif	  
+#endif
         }
         else if(target_Y == 2) {
             buf4_mat_irrep_init(Y, hybuf);
@@ -190,10 +190,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             trans4_mat_irrep_shift13(&Yt, hybuf);
             Ymat = Yt.shift.matrix[hybuf];
             Ytrans = 1;
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             yrow = Yt.shift.coltot[hybuf];
             ycol = Yt.shift.rowtot[hybuf];
-#endif	
+#endif
         }
         else if(target_Y == 3) {
             buf4_mat_irrep_init(Y, hybuf);
@@ -202,10 +202,10 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
             rking = 1;
             Ymat = Y->shift.matrix[hybuf];
             Ytrans = 0;
-#ifdef DPD_DEBUG	  
+#ifdef DPD_DEBUG
             yrow = Y->shift.rowtot[hybuf];
             ycol = Y->shift.coltot[hybuf];
-#endif	  
+#endif
         }
         else {
             outfile->Printf( "Junk Y index %d in contract442\n", target_Y);
@@ -215,12 +215,12 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
         if(rking)
             for(Hx=0; Hx < nirreps; Hx++) {
 #ifdef DPD_DEBUG
-                if((xrow[Hx] != zrow[Hx]) || (ycol[Hx] != zcol[Hx]) ||
-                        (xcol[Hx] != yrow[Hx])) {
-                    outfile->Printf( "** Alignment error in contract442 **\n");
-                    outfile->Printf( "** Irrep %d; Subirrep %d **\n", h,Hx);
-                    dpd_error("dpd_contract442", "outfile");
-                }
+              //  if((xrow[Hx] != zrow[Hx]) || (ycol[Hx] != zcol[Hx]) ||
+              //          (xcol[Hx] != yrow[Hx])) {
+              //      outfile->Printf( "** Alignment error in contract442 **\n");
+              //      outfile->Printf( "** Irrep %d; Subirrep %d **\n", h,Hx);
+              //      dpd_error("dpd_contract442", "outfile");
+              //  }
 #endif
                 if      ((!Xtrans) && (!Ytrans)) { Hy = Hx^GX;    Hz = Hx;    }
                 else if ((!Xtrans) && (Ytrans) ) { Hy = Hx^GX^GY; Hz = Hx;    }
@@ -232,9 +232,9 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
     outfile->Printf("rows[%d]=%d links[%d]=%d cols[%d]=%d\n",
        Hz, Z->params->rowtot[Hz], Hx, numlinks[Hx], Hz^GZ,
        Z->params->coltot[Hz^GZ]);
-    
+
     print_mat(Ymat[Hy], numlinks[Hx], Z->params->coltot[Hz^GZ], outfile);
-    
+
         }
         */
 
@@ -246,13 +246,13 @@ int DPD::contract442(dpdbuf4 *X, dpdbuf4 *Y, dpdfile2 *Z, int target_X,
         else
             for(Hx=0; Hx < nirreps; Hx++) {
 #ifdef DPD_DEBUG
-                if((xrow[Hx] != zrow[Hx]) || (ycol[Hx] != zcol[Hx]) ||
-                        (xcol[Hx] != yrow[Hx])) {
-                    outfile->Printf( "** Alignment error in contract442 **\n");
-                    outfile->Printf( "** Irrep %d; Subirrep %d **\n", h,Hx);
-                    dpd_error("dpd_contract442", "outfile");
-                }
-#endif	      
+            //    if((xrow[Hx] != zrow[Hx]) || (ycol[Hx] != zcol[Hx]) ||
+            //            (xcol[Hx] != yrow[Hx])) {
+            //        outfile->Printf( "** Alignment error in contract442 **\n");
+            //        outfile->Printf( "** Irrep %d; Subirrep %d **\n", h,Hx);
+            //        dpd_error("dpd_contract442", "outfile");
+            //    }
+#endif
                 if      ((!Xtrans) && (!Ytrans)) { Hy = Hx^GX;    Hz = Hx;    }
                 else if ((!Xtrans) && (Ytrans) ) { Hy = Hx^GX^GY; Hz = Hx;    }
                 else if ( (Xtrans) && (!Ytrans)) { Hy = Hx;       Hz = Hx^GX; }

@@ -67,7 +67,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
     double ***Xmat, ***Zmat;
 #ifdef DPD_DEBUG
     int *xrow, *xcol, *yrow, *ycol, *zrow, *zcol;
-#endif  
+#endif
 
     nirreps = X->params->nirreps;
     GX = X->file.my_irrep;
@@ -91,10 +91,10 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
     /*  if(fabs(beta) > 0.0) dpd_buf4_scm(Z, beta); */
     buf4_scm(Z, beta);
 
-#ifdef DPD_DEBUG  
+#ifdef DPD_DEBUG
     if(Ytrans) { yrow = Y->params->coltot; ycol = Y->params->rowtot; }
     else { yrow = Y->params->rowtot; ycol = Y->params->coltot; }
-#endif  
+#endif
 
     for(hxbuf=0; hxbuf < nirreps; hxbuf++) {
 
@@ -168,7 +168,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 zrow = Zt.shift.rowtot[hzbuf];
                 zcol = Zt.shift.coltot[hzbuf];
-#endif	  
+#endif
             }
             else {
                 buf4_mat_irrep_shift31(Z, hzbuf);
@@ -179,7 +179,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 zrow = Z->shift.rowtot[hzbuf];
                 zcol = Z->shift.coltot[hzbuf];
-#endif	  
+#endif
             }
 
             if(sum_X == 0) {
@@ -191,7 +191,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 xrow = X->shift.coltot[hxbuf];
                 xcol = X->shift.rowtot[hxbuf];
-#endif	  
+#endif
             }
             else if(sum_X == 1) {
                 buf4_mat_irrep_init(X, hxbuf);
@@ -206,7 +206,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 xrow = Xt.shift.rowtot[hxbuf];
                 xcol = Xt.shift.coltot[hxbuf];
-#endif 	  
+#endif
             }
             else if(sum_X == 2) {
                 buf4_mat_irrep_init(X, hxbuf);
@@ -220,7 +220,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 xrow = Xt.shift.coltot[hxbuf];
                 xcol = Xt.shift.rowtot[hxbuf];
-#endif	  
+#endif
             }
             else if(sum_X == 3) {
                 buf4_mat_irrep_init(X, hxbuf);
@@ -232,7 +232,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
 #ifdef DPD_DEBUG
                 xrow = X->shift.rowtot[hxbuf];
                 xcol = X->shift.coltot[hxbuf];
-#endif  
+#endif
             }
 
             if(rking)
@@ -242,13 +242,13 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
                     else if ( Xtrans && !Ytrans) {Hx=Hz^GX;    Hy = Hz^GX; }
                     else if ( Xtrans &&  Ytrans) {Hx=Hz^GX;    Hy = Hz^GX^GY; }
 #ifdef DPD_DEBUG
-                    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
-                            (xcol[Hz] != yrow[Hz])) {
-                        outfile->Printf( "** Alignment error in contract424 **\n");
-                        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hxbuf,Hz);
-                        dpd_error("dpd_contract424", "outfile");
-                    }
-#endif      
+                //    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
+                //            (xcol[Hz] != yrow[Hz])) {
+                //        outfile->Printf( "** Alignment error in contract424 **\n");
+                //        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hxbuf,Hz);
+                //        dpd_error("dpd_contract424", "outfile");
+                //    }
+#endif
                     /* outfile->Printf("Hx %d Hy %d Hz %d\n",Hx,Hy,Hz);
          outfile->Printf("numrows %d numlinks %d numcols %d\n",numrows[Hz],numlinks[Hy],numcols[Hz]); */
                     newmm_rking(Xmat[Hx], Xtrans, Y->matrix[Hy], Ytrans,
@@ -262,13 +262,13 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
                     else if ( Xtrans && !Ytrans) {Hx=Hz^GX;    Hy = Hz^GX; }
                     else if ( Xtrans &&  Ytrans) {Hx=Hz^GX;    Hy = Hz^GX^GY; }
 #ifdef DPD_DEBUG
-                    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
-                            (xcol[Hz] != yrow[Hz])) {
-                        outfile->Printf( "** Alignment error in contract424 **\n");
-                        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hxbuf,Hz);
-                        dpd_error("dpd_contract424", "outfile");
-                    }
-#endif	    	      
+                //    if((xrow[Hz] != zrow[Hz]) || (ycol[Hz] != zcol[Hz]) ||
+                //            (xcol[Hz] != yrow[Hz])) {
+                //        outfile->Printf( "** Alignment error in contract424 **\n");
+                //        outfile->Printf( "** Irrep: %d; Subirrep: %d **\n",hxbuf,Hz);
+                //        dpd_error("dpd_contract424", "outfile");
+                //    }
+#endif
                     if(numrows[Hz] && numcols[Hz] && numlinks[Hy^symlink]) {
                         if(!Xtrans && !Ytrans) {
                             C_DGEMM('n','n',numrows[Hz], numcols[Hz], numlinks[Hy^symlink],
@@ -314,7 +314,7 @@ int DPD::contract424(dpdbuf4 *X, dpdfile2 *Y, dpdbuf4 *Z, int sum_X,
         }  /* end if(incore) */
         else { /* out-of-core for "normal" 424 contractions */
             /* Prepare the input buffer for the X factor and the target*/
-#ifdef DPD_DEBUG	
+#ifdef DPD_DEBUG
             outfile->Printf( "\t424 out-of-core: %d\n", hxbuf);
 #endif
             buf4_mat_irrep_row_init(X, hxbuf);

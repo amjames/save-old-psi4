@@ -159,6 +159,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
         case(prsq): outfile->Printf("Doing out-of-core prsq sort.\n"); break;
         case(qprs): outfile->Printf("Doing out-of-core qprs sort.\n"); break;
         case(qpsr): outfile->Printf("Doing out-of-core qpsr sort.\n"); break;
+        case(qrsp): outfile->Printf("Doing out-of-core qrsp sort.\n"); break;
         case(sqpr): outfile->Printf("Doing out-of-core sqpr sort.\n"); break;
         case(rspq): outfile->Printf("Doing out-of-core rspq sort.\n"); break;
         }
@@ -171,6 +172,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
     case(prqs): incore = 0; break;
     case(prsq): incore = 0; break;
     case(qprs): incore = 0; break;
+    case(qrsp): incore = 0; break;
     case(qpsr): incore = 0; break;
     case(sqpr): incore = 0; break;
     case(rspq): incore = 0; break;
@@ -1249,11 +1251,15 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
             out_nbuckets = (int) ceil((double) OutBuf.params->rowtot[Gpq]/(double) out_rows_per_bucket);
             if(out_nbuckets == 1) out_rows_left = out_rows_per_bucket;
             else out_rows_left = OutBuf.params->rowtot[Gpq] % out_rows_per_bucket;
+            outfile->Printf("Gpq = %d\n", Gpq);
+            outfile->Printf("OutBuf.rowtot[Gpq]  = %d\n", OutBuf.params->rowtot[Gpq]);
+            outfile->Printf("OutBuf.coltot[Grs]  = %d\n", OutBuf.params->coltot[Grs]);
+            outfile->Printf("out_nbuckets        = %d\n", out_nbuckets);
+            outfile->Printf("out_rows_per_bucket = %d\n", out_rows_per_bucket);
+            outfile->Printf("out_rows_left       = %d\n", out_rows_left);
 
             /* allocate space for the bucket of rows */
-            outfile->Printf("\t  buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);");
             buf4_mat_irrep_init_block(&OutBuf, Gpq, out_rows_per_bucket);
-            outfile->Printf("--Done!\n");
 
             for(n=0; n< (out_rows_left ? out_nbuckets-1 : out_nbuckets); n++) {
 
@@ -1269,11 +1275,16 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
                 if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
                 else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
+                outfile->Printf("Grow = %d\n", Grow);
+                outfile->Printf("Gcol = %d\n", Gcol);
+                outfile->Printf("InBuf.rowtot[Grow]   = %d\n", InBuf->params->rowtot[Grow]);
+                outfile->Printf("InBuf.coltot[Gcol]   = %d\n", InBuf->params->coltot[Gcol]);
+                outfile->Printf("in_nbuckets         = %d\n", in_nbuckets);
+                outfile->Printf("in_rows_per_bucket  = %d\n", in_rows_per_bucket);
+                outfile->Printf("in_rows_left        = %d\n", in_rows_left);
 
                 /*allocate space for the bucket of rows */
-                outfile->Printf(" buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );\t ");
                 buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );
-                outfile->Printf("--Done!\n");
 
                 for(m =0; m < (in_rows_left ? in_nbuckets-1 : in_nbuckets); m++ ){
 
@@ -1293,7 +1304,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
 
                       Gsp = Gp^Gs;
                       Gqr = Gq^Gr;
-
+                      /*do we have the correct irrep of Inbuf in our in_bucket? */
                       if(Gsp == Grow) {
                         sp = InBuf->params->rowidx[s][p] - in_row_start;
                         /* check if the current value is in the current in_bucket or not */
@@ -1326,8 +1337,8 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                       Gsp = Gs^Gp;
                       Gqr = Gq^Gr;
 
-                      if(Gsp ==Grow){
-                        sp = InBuf->params->rowidx[s][p];
+                      if(Gsp == Grow){
+                        sp = InBuf->params->rowidx[s][p] - in_row_start;
                         /* check if the current value is in core or not */
                         if(sp >= 0 && sp< in_rows_left) {
                           qr = InBuf->params->colidx[q][r];
@@ -1357,6 +1368,13 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 in_nbuckets = (int) ceil((double) InBuf->params->rowtot[Grow]/(double) in_rows_per_bucket);
                 if(in_nbuckets == 1 ) in_rows_left = in_rows_per_bucket;
                 else in_rows_left = InBuf->params->rowtot[Grow] % in_rows_per_bucket;
+                outfile->Printf("Grow = %d\n", Grow);
+                outfile->Printf("Gcol = %d\n", Gcol);
+                outfile->Printf("InBuf.rowtot[Grow]   = %d\n", InBuf->params->rowtot[Grow]);
+                outfile->Printf("InBuf.coltot[Gcol]   = %d\n", InBuf->params->coltot[Gcol]);
+                outfile->Printf("in_nbuckets         = %d\n", in_nbuckets);
+                outfile->Printf("in_rows_per_bucket  = %d\n", in_rows_per_bucket);
+                outfile->Printf("in_rows_left        = %d\n", in_rows_left);
 
                 /*allocate space for the bucket of rows */
                 buf4_mat_irrep_init_block(InBuf, Grow, in_rows_per_bucket );
@@ -1413,7 +1431,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                       Gqr = Gq^Gr;
 
                       if(Gsp ==Grow){
-                        sp = InBuf->params->rowidx[s][p];
+                        sp = InBuf->params->rowidx[s][p] - in_row_start;
                         /* check if the current value is in core or not */
                         if(sp >= 0 && sp< in_rows_left) {
                           qr = InBuf->params->colidx[q][r];
