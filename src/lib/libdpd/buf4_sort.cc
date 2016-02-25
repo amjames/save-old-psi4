@@ -93,7 +93,7 @@ namespace psi {
 ** prqs: IC/OOC ** prsq: IC/OOC
 ** psqr: IC     ** psrq: IC
 ** qprs: IC/OOC ** qpsr: IC/OOC
-** qrps: IC     ** qrsp: IC
+** qrps: IC     ** qrsp: IC/OOC
 ** qspr: IC     ** qsrp: IC
 ** rqps: IC     ** rqsp: IC
 ** rpqs: IC     ** rpsq: IC
@@ -1240,7 +1240,7 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                 }
             }
         }
-        else { //AJ here
+        else {
           for(Gpq=0; Gpq < nirreps; Gpq++) {
             Grs = Gpq^my_irrep;
 
@@ -1313,11 +1313,11 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                           OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
                         }
 
-                      }//Gsp==Grow
-                    }//for rs
+                      }
+                    }
 
-                  }//for pq
-                }//for m
+                  }
+                }
                 if(in_rows_left) {
 
                   in_row_start = m*in_rows_per_bucket;
@@ -1343,17 +1343,17 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                         if(sp >= 0 && sp< in_rows_left) {
                           qr = InBuf->params->colidx[q][r];
                           OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
-                        }//if sp>= 0 ...
+                        }
 
-                      }//if Gsp == Grow
+                      }
 
-                    }//for rs ..
-                  }//for pq
-                }//if in_rows_left
+                    }
+                  }
+                }
                 buf4_mat_irrep_close_block(InBuf, Grow, in_rows_per_bucket);
-              }//for Grow
+              }
               buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, out_rows_per_bucket);
-            }//for n
+            }
             if(out_rows_left) {
 
               out_row_start = n*out_rows_per_bucket;
@@ -1406,11 +1406,11 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                           OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
                         }
 
-                      }//Gsp==Grow
-                    }//for rs
+                      }
+                    }
 
-                  }//for pq
-                }//for m
+                  }
+                }
                 if(in_rows_left) {
 
                   in_row_start = m*in_rows_per_bucket;
@@ -1436,21 +1436,21 @@ int DPD::buf4_sort(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                         if(sp >= 0 && sp< in_rows_left) {
                           qr = InBuf->params->colidx[q][r];
                           OutBuf.matrix[Gpq][pq][rs] = InBuf->matrix[Grow][sp][qr];
-                        }//if sp>= 0 ...
+                        }
 
-                      }//if Gsp == Grow
+                      }
 
-                    }//for rs ..
-                  }//for pq
-                }//if in_rows_left
+                    }
+                  }
+                }
                 buf4_mat_irrep_close_block(InBuf, Grow, in_rows_per_bucket);
-              }//for Grow
+              }
               buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, out_rows_per_bucket);
-            } //if out_rows_left ..
+            }
 
-          }//Gpq
+          }
 
-        } //AJ HERE
+        }
 
 #ifdef DPD_TIMER
         timer_off("qrsp");
