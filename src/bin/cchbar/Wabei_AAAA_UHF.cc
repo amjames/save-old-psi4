@@ -443,7 +443,7 @@ void NEW_WABEI_UHF(void)
 
   /**** Terms IIIc + IIId + IVa+IVb ****/
   /*
-   * 4 terms can be expressed as - (Tau_mn^ab W_MNEI)
+   * 4 terms can be expressed as - (Tau_MN^AB W_MNEI)
    * Notes:
    *      1. W_MNIE intermediate is read from disk (M>N-,EI)order to temp buffer Z
    *      2. W_MNIE is sorted to (EI,M>N-) order, Saved to disk, Re-Read into buffer Z
