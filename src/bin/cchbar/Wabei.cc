@@ -59,6 +59,7 @@ void Wabei_ROHF(void);
 void WABEI_UHF(void);
 void NEW_WABEI_UHF(void);
 void Wabei_UHF(void);
+void NEW_Wabei_UHF(void);
 void WAbEi_UHF(void);
 void WaBeI_UHF(void);
 
@@ -88,9 +89,10 @@ void Wabei_build(void)
       WaBeI_UHF();
     }
     if (params.new_Wabei_BBBB){
-      /* NEW_Wabei_UHF(); */
-      Wabei_UHF();
+      outfile->Printf("\n\t Using new Wabei_BBBB_UHF");
+      NEW_Wabei_UHF();
     }else{
+      outfile->Printf("\n\t Using old Wabei_BBBB_UHF");
       Wabei_UHF();
     }
   }
