@@ -41,7 +41,7 @@
 #include "globals.h"
 
 namespace psi { namespace cchbar {
-void build_UHF_Z1(void);
+void build_Z1_AAAA(void);
 void debug_check(void);
 void debug_break(void);
 void debug_break(void){
@@ -505,7 +505,7 @@ void NEW_WABEI_UHF(void)
    *
    * --AMJ 02/19/2016
    **/
-  build_UHF_Z1();//Z(IA,MF)
+  build_Z1_AAAA();//Z(IA,MF)
   if(!params.wabei_lowdisk){
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 1 , "F <AI|BC>");
     //                                                        BM||EF   BE MF
@@ -616,40 +616,10 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_close(&Z);
 
   /** Z(AB,EI) <-- -t_M^A Z(MB,EI) **/
-  outfile->Printf("\n\nStarting 2idx contraction\n");
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 21, 5, 21,  5, 0, "Z(EI,BA)");
   global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 21, 21, 21, 21, 0, "Z(EI,BM)");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
-//  global_dpd_->file2_mat_init(&T1);
-//  global_dpd_->file2_mat_rd(&T1);
   global_dpd_->contract424(&Z1, &T1, &Z, 3, 0, 0, -1, 0);
-//  for(Gei = 0; Gei < moinfo.nirreps; Gei++){
-//    Gmb = Gei; /*totally symmetric quantities */
-//    outfile->Printf("\tStarting irrep [ %d ]\n", Gei);
-//    global_dpd_->buf4_mat_irrep_row_init(&Z, Gei);
-//    global_dpd_->buf4_mat_irrep_row_init(&Z1, Gei);
-//    for(ei = 0; ei < Z.params->rowtot[Gei]; ei++){
-//      outfile->Printf("\t\tStarting row [ %d ]\n", ei);
-//      global_dpd_->buf4_mat_irrep_row_zero(&Z, Gei, ei);
-//      global_dpd_->buf4_mat_irrep_row_rd(&Z1, Gei, ei);
-//      //global_dpd_->buf4_mat_irrep_row_rd(&Z, Gei, ei);
-//      for(Gb = 0; Gb<moinfo.nirreps; Gb++){
-//        ncols = moinfo.avirtpi[Gb];
-//        nrows = moinfo.aoccpi[Gb];
-//        BM = Z1.col_offset[Gei][Gb];
-//        BA = Z.col_offset[Gei][Gb];
-//        if(nrows && ncols)
-//          C_DGEMM('n', 'n', ncols, ncols, nrows,
-//              -1, &(Z1.matrix[Gei][0][BM]), nrows,
-//              T1.matrix[Gb][0], ncols,
-//              0, &(Z.matrix[Gei][0][BA]), ncols);
-//      }
-//      global_dpd_->buf4_mat_irrep_row_wrt(&Z,Gei,ei);
-//    }
-//    global_dpd_->buf4_mat_irrep_row_close(&Z, Gei);
-//    global_dpd_->buf4_mat_irrep_row_close(&Z1,Gei);
-//  }
-//global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&Z1);
   global_dpd_->buf4_close(&Z);
@@ -663,7 +633,7 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_axpy(&Z,&W,-1.0);
   global_dpd_->buf4_close(&Z);
 
-  global_dpd_->buf4_print(&W, "outfile", 1);
+  //global_dpd_->buf4_print(&W, "outfile", 1);
   global_dpd_->buf4_close(&W);
 
   if(params.print & 2) outfile->Printf("done.\n");
@@ -675,7 +645,7 @@ void NEW_WABEI_UHF(void)
 **
 ** AMJ 1/2016
 */
-void build_UHF_Z1(void)
+void build_Z1_AAAA(void)
 {
   dpdbuf4 T2, Z1, Fint;
   dpdfile2 T1;
@@ -721,7 +691,7 @@ void build_UHF_Z1(void)
   global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&Z1);
-}//build_Z1
+}//build_Z1_AAAA
 
 }} // namespace psi::cchbar
 

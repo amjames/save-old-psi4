@@ -315,8 +315,9 @@ void NEW_Wabei_UHF(void)
   dpdfile2 Fme, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C, F1,F2,W1, W2, Tau;
   double value, alpha, beta;
-  int Gef, Gei, Gab, Ge, Gi, Gf, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm;
+  int h,Gef, Gei, Gab, Ge, Gi, Gf, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm;
   int Gma, ma, a, m, Ga, Gb, I, i, mi, BA, BM,ei, ab,ba,b,BB, fb, bf, fe,ef,mb,am;
+  int maxrows, coltot, rowtot, core_total, incore;
 
   /**** Term I ****/
 
@@ -546,4 +547,52 @@ void NEW_Wabei_UHF(void)
 
   timer_off("UHF_Wabei(NEW)");
 }
+void build_Z1_BBBB(void)
+{
+  dpdbuf4 T2, Z1, Fint;
+  dpdfile2 T1;
+  int row,col,h;
+  int GI,GB,GM,GF,GA;
+  int i,b,m,f,a;
+  int I,B,M,F,A;
+
+  global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 30, 30, 30, 30, 0, "tiajb");
+  global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1(ia,mf)");
+  global_dpd_->buf4_close(&T2);
+  global_dpd_->buf4_init(&Z1, PSIF_CC_TMP0, 0, 30, 30, 30, 30, 0, "Z1(ia,mf)");
+  global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 2, 3, "tia");
+  global_dpd_->file2_mat_init(&T1);
+  global_dpd_->file2_mat_rd(&T1);
+
+  for(h = 0; h < moinfo.nirreps; h++){
+    global_dpd_->buf4_mat_irrep_init(&Z1, h);
+    global_dpd_->buf4_mat_irrep_rd(&Z1, h);
+    for(row = 0; row< Z1.params->rowtot[h]; row ++){
+      i  = Z1.params->roworb[h][row][0];
+      a  = Z1.params->roworb[h][row][1];
+      I  = T1.params->rowidx[i];
+      A  = T1.params->colidx[a];
+      GI = T1.params->psym[i];
+      GA = T1.params->qsym[a];
+      for(col =0; col < Z1.params->coltot[h]; col ++){
+        m = Z1.params->colorb[h][col][0];
+        f = Z1.params->colorb[h][col][1];
+        M = T1.params->rowidx[m];
+        F = T1.params->colidx[f];
+        GM = T1.params->psym[m];
+        GF = T1.params->qsym[f];
+
+        if( GI == GF && GA == GM ){
+          Z1.matrix[h][row][col] -= (T1.matrix[GI][I][F] * T1.matrix[GM][M][A]);
+        }
+      }
+    }
+    global_dpd_->buf4_mat_irrep_wrt(&Z1, h);
+    global_dpd_->buf4_mat_irrep_close(&Z1, h);
+  }
+  global_dpd_->file2_mat_close(&T1);
+  global_dpd_->file2_close(&T1);
+  global_dpd_->buf4_close(&Z1);
+}
+
 }} // namespace psi::cchbar
