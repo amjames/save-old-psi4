@@ -348,7 +348,7 @@ void NEW_WABEI_UHF(void)
 
   /**** Term I ****/
   if(params.print == 2) {
-    outfile->Printf( "\n\t\tF<AI|BC> -> Wabei...");
+    outfile->Printf( "\n\t\tF<AI|BC> -> WABEI...");
 
   }
   if(params.print & 2) outfile->Printf( "done.\n");
@@ -360,7 +360,7 @@ void NEW_WABEI_UHF(void)
   /**** Term II ****/
 
   if(params.print == 2) {
-    outfile->Printf( "\t\t FME*T2 -> Wabei...");
+    outfile->Printf( "\t\t FME*T2 -> WABEI...");
   }
   /** W(EI,AB) <--- - F_ME t_MI^AB **/
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 0, 7, 2, 7, 0, "tIJAB");
@@ -405,7 +405,7 @@ void NEW_WABEI_UHF(void)
 
   /** W(EI,AB) <--- <AB||EF> t_I^F **/
   if(params.print & 2) {
-    outfile->Printf( "\t\tB*T1 -> Wabei...");
+    outfile->Printf( "\t\tB*T1 -> WABEI...");
 
   }
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
@@ -444,7 +444,7 @@ void NEW_WABEI_UHF(void)
   if(params.print & 2) outfile->Printf( "done.\n");
 
 
-  if(params.print & 2) outfile->Printf("\t\tD*T1*Tau+ E*Tau ...");
+  if(params.print & 2) outfile->Printf("\t\tD*T1*Tau+ E*Tau -> WABEI ...");
 
   /**** Terms IIIc + IIId + IVa+IVb ****/
   /*
