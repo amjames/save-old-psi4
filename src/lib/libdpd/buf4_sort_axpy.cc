@@ -942,7 +942,7 @@ int DPD::buf4_sort_axpy(dpdbuf4 *InBuf, int outfilenum, enum indices index,
                             q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
                             qp = InBuf->params->rowidx[q][p] - in_row_start;
                             if(qp >= 0 && qp < rows_left) {
-                                C_DAXPY(OutBuf.params->coltot[Grs],alpha InBuf->matrix[Gpq][qp], 1,
+                                C_DAXPY(OutBuf.params->coltot[Grs],alpha, InBuf->matrix[Gpq][qp], 1,
                                         OutBuf.matrix[Gpq][pq], 1);
                             }
                         }
