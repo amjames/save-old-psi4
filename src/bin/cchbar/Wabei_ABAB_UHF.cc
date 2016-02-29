@@ -26,6 +26,9 @@
 */
 #include <cstdio>
 #include <libdpd/dpd.h>
+#include <libciomr/libciomr.h>
+#include <libqt/qt.h>
+#include <libpsio/psio.h>
 #include "MOInfo.h"
 #include "Params.h"
 #define EXTERN
@@ -319,11 +322,14 @@ void NEW_WAbEi_UHF(void)
 {
   timer_on("UHF_WAbEi(NEW)");
   dpdfile2 FME, T1;
-  dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E,C, F1, F2, W1, W1, Tau;
+  dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E,C, F1, F2, W1, W2, Tau;
   double value, alpha, beta;
+  double core_total;
+  int maxrows;
+  int coltot, rowtot, incore;
   int Gef, Gei, Gab, Ge, Gi, Gf, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm;
   int Gma, ma, m, a, Ga, Gb, I, i, mi, BA,BM, ei, ab, ba, b, BB, fb, bf, fe, ef, mb, am;
-  int Gam, Gmb;
+  int Gam, Gmb, h;
 
   /***** Term I *****/
   if(params.print == 2) outfile->Printf("F<Ei|Ab> -> WAbEi ... ");
@@ -519,7 +525,7 @@ void NEW_WAbEi_UHF(void)
     build_Z1B_ABAB();
 
     /** W2(ib,AE)<-- <Am|Ef>Z1b(ib,mf) **/
-    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 30,  5, 30  0, "F <Ai|Bc> (AB,ic)");
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 30,  5, 30, 0, "F <Ai|Bc> (AB,ic)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0 , 0, 30, 30, 30, 30, 0, "Z1b(ib,mf)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0,  0,  5, 30,  5, 30, 0, "W2(AE,ib)");
     if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, -1, 0);
@@ -538,13 +544,17 @@ void NEW_WAbEi_UHF(void)
 
     /** Add W2 and W1 to target **/
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 27, 29, 27, 0, "W1(bE,iA)");
-    global_dpd_->buf4_sort_axpy(&W1, PSIF_CC_HBAR, qrsp, 26, 28, "WEiAb" );
+    global_dpd_->buf4_sort_axpy(&W1, PSIF_CC_HBAR, qrsp, 26, 28, "WEiAb",1 );
     global_dpd_->buf4_close(&W);
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0,  5, 30,  5, 30, 0,"W2(ib,AE)")
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0,  5, 30,  5, 30, 0,"W2(ib,AE)");
     /* replace with ooc or smater code above */
-    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, sprq, 26, 28, "WEiAb" );
+    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, sprq, 26, 28, "WEiAb",1 );
     global_dpd_->buf4_close(&W);
-
+  }else{
+   // Once I get this working correctly I will worry about the low-disk case
+    outfile->Printf("\nWABEI_UHF(AAAA) Error: No low-disk algorithim for (T2+T1*T1)*F ->Wabei\n");
+    exit(PSI_RETURN_FAILURE);
+  }
 
   /**** Terms VIII and IX ****/
 
@@ -630,6 +640,7 @@ void NEW_WAbEi_UHF(void)
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 26, 28, "WEiAb", 1);
   global_dpd_->buf4_close(&W);
 
+
 }
 
 void build_Z1A_ABAB(){
@@ -643,7 +654,7 @@ void build_Z1A_ABAB(){
   global_dpd_->buf4_close(&T2);
 
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 27, 24, 27, 24, 0, "Z1a(iA,Mf)");
-  global_dpd_->file2_init(&TMF, PSIF_CC_OEI, 0, 0, 1, "tIA");
+  global_dpd_->file2_init(&TMA, PSIF_CC_OEI, 0, 0, 1, "tIA");
   global_dpd_->file2_init(&Tif, PSIF_CC_OEI, 0, 2, 3, "tia");
   global_dpd_->file2_mat_init(&Tif);
   global_dpd_->file2_mat_init(&TMA);
@@ -717,13 +728,13 @@ void build_Z1B_ABAB(){
         Gm = T1.params->psym[morb];
         Gf = T1.params->qsym[forb];
 
-        if(Gi == Gf && Ga == Gm) {
-           Z.matrix[h][row][col] -= T1.matrix[Gi][i][f] *T1.matirx[Gm][m][f];
+        if(Gi == Gf && Gb == Gm) {
+           Z.matrix[h][row][col] -= T1.matrix[Gi][i][f] *T1.matrix[Gm][m][f];
         }
       }
     }
     global_dpd_->buf4_mat_irrep_wrt(&Z, h);
-    global_dpd_->buf4_mat_rrep_close(&Z, h);
+    global_dpd_->buf4_mat_irrep_close(&Z, h);
   }
   global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
