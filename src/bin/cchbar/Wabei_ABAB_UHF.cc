@@ -439,7 +439,7 @@ void NEW_WAbEi_UHF(void)
    * --AMJ 1/16
    */
   global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 23, 26, 23,26, 0, "WmNiE (mN,Ei)");
-  global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rsqp, 26, 22, "WMNIE (Ei,Mn)");
+  global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rsqp, 26, 22, "WmNiE (Ei,Mn)");
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR,  0, 26, 28, 26, 28, 0, "WEiAb");
   global_dpd_->buf4_init(&Z, PSIF_CC_HBAR,  0, 26, 22, 26, 22, 0, "WmNiE (Ei,Mn)");
@@ -483,9 +483,10 @@ void NEW_WAbEi_UHF(void)
    * W1(bE,iA) sort axpy(qrsp) WAbEi (Ei,Ab)
    *
    */
-
+  psio_tocprint(PSIF_CC_FINTS);
   if(!params.wabei_lowdisk){
-    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 21, 5, 21, 5, 0 , "F <Ia|Bc>");
+    outfile->Printf(" Top line\n");
+    global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 24, 28, 24, 28, 0 , "F <Ia|Bc>");
     global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, qrps, 29,24, "F <Ia|Bc> (aB,Ic)");
     incore =1;
     core_total=0;
@@ -522,39 +523,52 @@ void NEW_WAbEi_UHF(void)
     global_dpd_->buf4_init(&F,PSIF_CC_FINTS, 0, 29, 24, 29, 24, 0, "F <Ia|Bc> (aB,Ic)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 27, 24, 27 ,24, 0, "Z1a(iA,Mf)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 27, 29, 27, 0, "W1(bE,iA)");
+    outfile->Printf("/** W1(bE,AE)<--  <Mb|Ef>Z1a(iA,Mf) **/ ...");
     if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, -1, 0);
+    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&Z);
     global_dpd_->buf4_close(&F);
 
+    outfile->Printf(" /** Z1b = t_mi^bf - t_i^f t_m^b **/");
     /** Z1b = t_mi^bf - t_i^f t_m^b **/
     build_Z1B_ABAB();
+    outfile->Printf(" done\n");
 
     /** W2(ib,AE)<-- <Am|Ef>Z1b(ib,mf) **/
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 30,  5, 30, 0, "F <Ai|Bc> (AB,ic)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0 , 0, 30, 30, 30, 30, 0, "Z1b(ib,mf)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0,  0,  5, 30,  5, 30, 0, "W2(AE,ib)");
+    outfile->Printf("/** W2(ib,AE)<-- <Am|Ef>Z1b(ib,mf) **/ ...");
     if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, -1, 0);
+    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&Z);
     global_dpd_->buf4_close(&W);
 
     /** W2(ib,AE)<--t_iM^bF<AM||EF> **/
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 20,  5, 20, 0, "F <AI||BC> (AB,IC)");
-    global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0,  "tIAjb");
+    global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 30, 20, 30, 20, 0,  "tiaJB");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0,  0,  5, 30,  5, 30, 0, "W2(AE,ib)");
+    /** W2(ib,AE)<--t_iM^bF<AM||EF> **/
+    outfile->Printf(" /** W2(ib,AE)<--t_iM^bF<AM||EF> **/ ...");
     if(incore)global_dpd_->contract444(&F, &T, &W, 0,0, -1, 1);
+    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&F);
-    global_dpd_->buf4_close(&Z);
+    global_dpd_->buf4_close(&T);
     global_dpd_->buf4_close(&W);
 
     /** Add W2 and W1 to target **/
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 27, 29, 27, 0, "W1(bE,iA)");
-    global_dpd_->buf4_sort_axpy(&W1, PSIF_CC_HBAR, qrsp, 26, 28, "WEiAb",1 );
+    outfile->Printf(" /**WEiAb <-- W1(bE,iA)**/ ...");
+    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrsp, 26, 28, "WEiAb",1 );
+    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&W);
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0,  5, 30,  5, 30, 0,"W2(ib,AE)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0,  5, 30,  5, 30, 0,"W2(AE,ib)");
+    outfile->Printf(" /**WEiAb <-- W2(ib,AE)**/ ...");
     /* replace with ooc or smater code above */
-    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, sprq, 26, 28, "WEiAb",1 );
+    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrps, 26, 28, "WEiAb",1 );
+    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&W);
   }else{
    // Once I get this working correctly I will worry about the low-disk case
@@ -646,6 +660,7 @@ void NEW_WAbEi_UHF(void)
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 26, 28, "WEiAb", 1);
   global_dpd_->buf4_close(&W);
 
+  timer_off("UHF_WAbEi(NEW)");
 
 }
 
@@ -711,7 +726,7 @@ void build_Z1B_ABAB(){
   global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1b(ib,mf)");
   global_dpd_->buf4_close(&T2);
 
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 30, 30, 30, 30, 0, "Z1a(ib,mf)");
+  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 30, 30, 30, 30, 0, "Z1b(ib,mf)");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 2, 3, "tia");
   global_dpd_->file2_mat_init(&T1);
   global_dpd_->file2_mat_rd(&T1);
