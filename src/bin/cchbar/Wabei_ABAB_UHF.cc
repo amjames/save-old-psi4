@@ -344,6 +344,7 @@ void NEW_WAbEi_UHF(void)
   if(params.print == 2) outfile->Printf("\t-F_ME t_Mi^Ab -> WAbEi ... ");
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 22, 28, 22, 28, 0, "tIjAb");
   global_dpd_->file2_init(&FME, PSIF_CC_OEI, 0, 0, 1, "FME");
+  global_dpd_->file2_mat_init(&FME);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 26, 28, 26, 28, 0, "WEiAb");
   //global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
   for(Gei=0; Gei < moinfo.nirreps; Gei++) {
@@ -382,7 +383,7 @@ void NEW_WAbEi_UHF(void)
 
   /** <Ab|Ef> t_i^f **/
   if(params.print == 2) outfile->Printf("\tB*T1 -> WAbEi ... ");
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 26, 28, 26, 28, 0, "W'(Ab,Ei)");
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 26, 28, 26, 28, 0, "WEiAb");
   global_dpd_->buf4_init(&B, PSIF_CC_BINTS, 0, 28, 28, 28, 28, 0, "B <Ab|Cd>");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 2, 3, "tia");
   //global_dpd_->contract424(&B, &T1, &W, 3, 1, 0, 1, 0);
