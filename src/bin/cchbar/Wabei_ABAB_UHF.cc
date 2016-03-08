@@ -40,6 +40,20 @@
 #include "globals.h"
 
 namespace psi { namespace cchbar {
+void debug_check(void);
+void debug_check(void)
+{
+  dpdbuf4 W;
+  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 26, 28, 26, 28, 0, "WEiAb");
+  global_dpd_->buf4_copy(&W, PSIF_CC_TMP0, "WEiAb-check");
+  global_dpd_->buf4_close(&W);
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 26, 28, 26, 0, "W'(Ab,Ei)");
+  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_TMP0, rspq, 26, 28, "WEiAb-check", 1);
+  global_dpd_->buf4_close(&W);
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 26, 28, 26, 28, 0, "WEiAb-check");
+  global_dpd_->buf4_print(&W,"outfile",1 );
+  global_dpd_->buf4_close(&W);
+}
 
 void build_Z1A_ABAB();
 void build_Z1B_ABAB();
