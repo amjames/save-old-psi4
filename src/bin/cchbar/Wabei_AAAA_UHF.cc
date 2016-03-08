@@ -63,19 +63,6 @@ void debug_break(void){
 ** TDC, June 2002
 */
 
-void debug_check(void)
-{
-  dpdbuf4 W;
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
-  global_dpd_->buf4_copy(&W, PSIF_CC_TMP0, "WEIAB-check");
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 7, 21, 7, 21, 0, "W'(AB,EI)");
-  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_TMP0, rspq, 21, 7, "WEIAB-check", 1);
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 21, 7, 21, 7, 0, "WEIAB-check");
-  global_dpd_->buf4_print(&W,"outfile",1 );
-  global_dpd_->buf4_close(&W);
-}
 void WABEI_UHF(void)
 {
   dpdfile2 Fme, T1;
