@@ -359,45 +359,45 @@ void NEW_WAbEi_UHF(void)
   if(params.print == 2) outfile->Printf("done\n");
 
   /**** Term II ****/
+  //This is wrong
   /** W(Ei,Ab) <--- - F_ME t_Mi^Ab **/
   if(params.print == 2) outfile->Printf("\t-F_ME t_Mi^Ab -> WAbEi ... ");
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 22, 28, 22, 28, 0, "tIjAb");
   global_dpd_->file2_init(&FME, PSIF_CC_OEI, 0, 0, 1, "FME");
-  global_dpd_->file2_mat_init(&FME);
+// global_dpd_->file2_mat_init(&FME);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 26, 28, 26, 28, 0, "WEiAb");
-  //global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
-  for(Gei=0; Gei < moinfo.nirreps; Gei++) {
-    Gmi = Gab = Gei;
-    global_dpd_->buf4_mat_irrep_init(&T2,Gmi);
-    global_dpd_->buf4_mat_irrep_rd(&T2,Gmi);
-    row=0;
-    for(Ge=0; Ge<moinfo.nirreps; Ge++){
-      Gm= Ge;
-      Gi= Gm ^ Gmi;
-      W.matrix[Gei] = global_dpd_->dpd_block_matrix(moinfo.boccpi[Gi],W.params->coltot[Gei]);
-      nrows = moinfo.aoccpi[Gm];
-      ncols = moinfo.boccpi[Gi] * W.params->coltot[Gei];
-      if(nrows && ncols){
-        for(EE=0; EE< moinfo.avirtpi[Ge]; EE++){
-          e = moinfo.avir_off[Ge] + EE;
-          global_dpd_->buf4_mat_irrep_rd_block(&W, Gei, W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-          C_DGEMV('t',nrows,ncols, -1.0,&T2.matrix[Gmi][row][0],ncols,
-              &FME.matrix[Gm][0][EE],moinfo.avirtpi[Ge], 1.0,W.matrix[Gei][0],1);
-          global_dpd_->buf4_mat_irrep_wrt_block(&W,Gei,W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-        }
-      }
-      row+= moinfo.aoccpi[Gm]* moinfo.boccpi[Gi];
-      global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.boccpi[Gi],W.params->coltot[Gei]);
-    }
-    global_dpd_->buf4_mat_irrep_close(&T2,Gmi);
-
-  }
-  global_dpd_->file2_mat_close(&FME);
-  global_dpd_->file2_close(&FME);
+  global_dpd_->contract244(&FME, &T2, &W, 0, 0, 0, -1, 1);
+//  for(Gei=0; Gei < moinfo.nirreps; Gei++) {
+//    Gmi = Gab = Gei;
+//    global_dpd_->buf4_mat_irrep_init(&T2,Gmi);
+//    global_dpd_->buf4_mat_irrep_rd(&T2,Gmi);
+//    row=0;
+//    for(Ge=0; Ge<moinfo.nirreps; Ge++){
+//      Gm= Ge;
+//      Gi= Gm ^ Gmi;
+//      W.matrix[Gei] = global_dpd_->dpd_block_matrix(moinfo.boccpi[Gi],W.params->coltot[Gei]);
+//      nrows = moinfo.aoccpi[Gm];
+//      ncols = moinfo.boccpi[Gi] * W.params->coltot[Gei];
+//      if(nrows && ncols){
+//        for(EE=0; EE< moinfo.avirtpi[Ge]; EE++){
+//          e = moinfo.avir_off[Ge] + EE;
+//          global_dpd_->buf4_mat_irrep_rd_block(&W, Gei, W.row_offset[Gei][e],moinfo.boccpi[Gi]);
+//          C_DGEMV('t',nrows,ncols, -1.0,&T2.matrix[Gmi][row][0],ncols,
+//              &FME.matrix[Gm][0][EE],moinfo.avirtpi[Ge], 1.0,W.matrix[Gei][0],1);
+//          global_dpd_->buf4_mat_irrep_wrt_block(&W,Gei,W.row_offset[Gei][e],moinfo.boccpi[Gi]);
+//        }
+//      }
+//      row+= moinfo.aoccpi[Gm]* moinfo.boccpi[Gi];
+//      global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.boccpi[Gi],W.params->coltot[Gei]);
+//    }
+//    global_dpd_->buf4_mat_irrep_close(&T2,Gmi);
+//
+//  }
+//  global_dpd_->file2_mat_close(&FME);
+//  global_dpd_->file2_close(&FME);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&T2);
   if(params.print == 2) outfile->Printf("done\n");
-
   /**** Term IIIa ****/
 
   /** <Ab|Ef> t_i^f **/
@@ -470,7 +470,7 @@ void NEW_WAbEi_UHF(void)
       global_dpd_->buf4_mat_irrep_row_init(&W, Gei);
       for(ei=0; ei< W.params->rowtot[Gei]; ei++){
          global_dpd_->buf4_mat_irrep_row_rd(&W, Gei, ei);
-         C_DGEMV('t',nrows,ncols,-1,T.matrix[Gei][0],ncols,Z.matrix[Gei][ei],1,
+         C_DGEMV('t',nrows,ncols,1,T.matrix[Gei][0],ncols,Z.matrix[Gei][ei],1,
              1.0,W.matrix[Gei][0],1);
          global_dpd_->buf4_mat_irrep_row_wrt(&W, Gei, ei);
       }
@@ -497,9 +497,7 @@ void NEW_WAbEi_UHF(void)
    * W1(bE,iA) sort axpy(qrsp) WAbEi (Ei,Ab)
    *
    */
-  psio_tocprint(PSIF_CC_FINTS);
   if(!params.wabei_lowdisk){
-    outfile->Printf(" Top line\n");
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 24, 28, 24, 28, 0 , "F <Ia|Bc>");
     global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, qrps, 29,24, "F <Ia|Bc> (aB,Ic)");
     incore =1;
@@ -530,32 +528,27 @@ void NEW_WAbEi_UHF(void)
     incore =1;
     global_dpd_->buf4_close(&F);
 
-    /** Z1a = t_i^f t_M^A - T_Mi^Af **/
+    /** Z1a = t_i^f t_M^A + T_Mi^Af **/
     build_Z1A_ABAB();
 
-    /** W1(bE,AE)<--  <Mb|Ef>Z1a(iA,Mf) **/
+    /** W1(bE,iA)<--  <Mb|Ef>Z1a(iA,Mf) **/
     global_dpd_->buf4_init(&F,PSIF_CC_FINTS, 0, 29, 24, 29, 24, 0, "F <Ia|Bc> (aB,Ic)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 27, 24, 27 ,24, 0, "Z1a(iA,Mf)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 27, 29, 27, 0, "W1(bE,iA)");
-    outfile->Printf("/** W1(bE,AE)<--  <Mb|Ef>Z1a(iA,Mf) **/ ...");
     if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, -1, 0);
-    outfile->Printf(" done\n");
+    //global_dpd_->buf4_print(&W,"outfile",1);
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&Z);
     global_dpd_->buf4_close(&F);
 
-    outfile->Printf(" /** Z1b = t_mi^bf - t_i^f t_m^b **/");
-    /** Z1b = t_mi^bf - t_i^f t_m^b **/
+    /** Z1b = +t_mi^bf - t_i^f t_m^b **/
     build_Z1B_ABAB();
-    outfile->Printf(" done\n");
 
     /** W2(ib,AE)<-- <Am|Ef>Z1b(ib,mf) **/
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 30,  5, 30, 0, "F <Ai|Bc> (AB,ic)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0 , 0, 30, 30, 30, 30, 0, "Z1b(ib,mf)");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0,  0,  5, 30,  5, 30, 0, "W2(AE,ib)");
-    outfile->Printf("/** W2(ib,AE)<-- <Am|Ef>Z1b(ib,mf) **/ ...");
-    if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, -1, 0);
-    outfile->Printf(" done\n");
+    if(incore)global_dpd_->contract444(&F, &Z, &W, 0, 0, 1, 0);
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&Z);
     global_dpd_->buf4_close(&W);
@@ -564,25 +557,18 @@ void NEW_WAbEi_UHF(void)
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0,  5, 20,  5, 20, 0, "F <AI||BC> (AB,IC)");
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 30, 20, 30, 20, 0,  "tiaJB");
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0,  0,  5, 30,  5, 30, 0, "W2(AE,ib)");
-    /** W2(ib,AE)<--t_iM^bF<AM||EF> **/
-    outfile->Printf(" /** W2(ib,AE)<--t_iM^bF<AM||EF> **/ ...");
-    if(incore)global_dpd_->contract444(&F, &T, &W, 0,0, -1, 1);
-    outfile->Printf(" done\n");
+    if(incore)global_dpd_->contract444(&F, &T, &W, 0,0, 1, 1);
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&T);
     global_dpd_->buf4_close(&W);
 
     /** Add W2 and W1 to target **/
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 27, 29, 27, 0, "W1(bE,iA)");
-    outfile->Printf(" /**WEiAb <-- W1(bE,iA)**/ ...");
     global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrsp, 26, 28, "WEiAb",1 );
-    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0,  5, 30,  5, 30, 0,"W2(AE,ib)");
-    outfile->Printf(" /**WEiAb <-- W2(ib,AE)**/ ...");
     /* replace with ooc or smater code above */
     global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrps, 26, 28, "WEiAb",1 );
-    outfile->Printf(" done\n");
     global_dpd_->buf4_close(&W);
   }else{
    // Once I get this working correctly I will worry about the low-disk case
@@ -685,7 +671,8 @@ void build_Z1A_ABAB(){
   int h, row, col;
 
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 27, 24, 27, 24, 0, "tjAIb" );
-  global_dpd_->buf4_scmcopy(&T2, PSIF_CC_TMP0, "Z1a(iA,Mf)",-1);
+  //global_dpd_->buf4_scmcopy(&T2, PSIF_CC_TMP0, "Z1a(iA,Mf)",-1);
+  global_dpd_->buf4_copy(&T2, PSIF_CC_TMP0, "Z1a(iA,Mf)");
   global_dpd_->buf4_close(&T2);
 
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 27, 24, 27, 24, 0, "Z1a(iA,Mf)");
@@ -750,7 +737,7 @@ void build_Z1B_ABAB(){
     global_dpd_->buf4_mat_irrep_rd(&Z, h);
     for(row = 0; row < Z.params->rowtot[h]; row++){
       iorb = Z.params->roworb[h][row][0];
-      borb = Z.params->roworb[h][row][0];
+      borb = Z.params->roworb[h][row][1];
       i = T1.params->rowidx[iorb];
       b = T1.params->colidx[borb];
       Gi = T1.params->psym[iorb];
@@ -764,7 +751,7 @@ void build_Z1B_ABAB(){
         Gf = T1.params->qsym[forb];
 
         if(Gi == Gf && Gb == Gm) {
-           Z.matrix[h][row][col] -= T1.matrix[Gi][i][f] *T1.matrix[Gm][m][f];
+           Z.matrix[h][row][col] -= T1.matrix[Gi][i][f] *T1.matrix[Gm][m][b];
         }
       }
     }
