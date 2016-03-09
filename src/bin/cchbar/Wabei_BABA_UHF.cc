@@ -670,9 +670,93 @@ void NEW_WaBeI_UHF(void)
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 25, 29, "WeIaB", 1);
   global_dpd_->buf4_close(&W);
 
+  //global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
+  //global_dpd_->buf4_print(&W, "outfile",1);
+  //global_dpd_->buf4_close(&W);
   timer_off("UHF_WaBeI(NEW)");
 
 }
+
+/*
+ ** Bints_read_Fe_block
+ ** To avoid sorting the B integrals <Ab|Cd> to <aB|cD>
+ ** I will read the rows [allF][eval] into a block matrix
+ ** for every e. this may require some out of core fanciness
+ ** or may be more expensive than the sort, profiling will tell
+ **
+ ** The matrix for the buffer should have been appropriately sized
+ ** previously with block_matrix()
+*/
+void Bints_read_Fe_block(dpdbuf4* Buf,int GeF, int GF, int eIdx)
+{
+  double value;               //Matrix element
+  int Fe;                     //row index (buffer)
+  int Ba;                     //col index (file)
+  int col;                    //col index (buffer matrix)
+  int FIdx, aIdx, BIdx;       //orbital indices
+  int nF, na, nB;             //orbital counters
+  int Ga, GB;                 //Irrep counters
+
+  /* I am using these for readability */
+  /*   and to avoid looking up things in moinfo */
+  /*   over and over */
+  int FMax,aMax,BMax;         //orbital counter limits
+  int FStart, aStart,BStart;  //orbital offset holders
+
+  //for debuging checks
+  int coltot = Buf->params->coltot[GeF];
+  FMax = moinfo.avirtpi[GF];
+   /* remove this timer after profiling */
+  timer_on("Noncontiguous Bints Read (WaBeI build)");
+  /* prepare the input buffer from the file */
+  global_dpd_->file4_mat_irrep_row_init(&(Buf->file), GeF);
+
+  /* loop over F values */
+  FStart = moinfo.avir_off[GF];
+
+  for( nF =0; nF < FMax; nF++){
+    FIdx = FStart+nF;
+    Fe = Buf->params->rowidx[FIdx][eIdx];
+    global_dpd_->file4_mat_irrep_row_rd(&(Buf->file), GeF,Fe);
+
+    /* count the cols of the target matrix */
+    col =0;
+
+    /* Loop over irreps of the beta virtual space */
+    for(Ga=0; Ga<moinfo.nirreps; Ga++){
+      /* Compute irrep of B */
+      GB=GeF^Ga;
+      /* orbital indices will start at the offset */
+      /* each irrep in each space */
+      aStart = moinfo.bvir_off[Ga];
+      BStart = moinfo.avir_off[GB];
+      aMax = moinfo.bvirtpi[Ga];
+      BMax = moinfo.avirtpi[GB];
+
+      /* loop over the a's */
+      for(na=0; na< aMax; na++){
+        /* compute a orbital index */
+        aIdx = aStart+na;
+
+        /* loop over b's */
+        for(nB=0; nB<BMax; nB++,col++){
+          /* compute B orbital index */
+          BIdx = BStart +nB;
+          /* Get the file index for this value */
+          Ba = Buf->file.params->colidx[BIdx][aIdx];
+          /* get the value */
+          value = Buf->file.matrix[GeF][0][Ba];
+          /* shove it into the Buff's matrix */
+          if (col > coltot) outfile->Printf("\nError: Colls have run amok\n");
+          Buf->matrix[GeF][nF][col] = value;
+        }
+      }
+    }
+  }
+  global_dpd_->file4_mat_irrep_row_close(&(Buf->file), GeF);
+  timer_off("Noncontiguous Bints Read (WaBeI build)");
+}
+
 
 void build_Z1A_BABA()
 {
