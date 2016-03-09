@@ -380,7 +380,7 @@ void NEW_WAbEi_UHF(void)
 //
 //  }
 //  global_dpd_->file2_mat_close(&FME);
-//  global_dpd_->file2_close(&FME);
+  global_dpd_->file2_close(&FME);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&T2);
   if(params.print == 2) outfile->Printf("done\n");
