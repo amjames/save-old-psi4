@@ -83,6 +83,7 @@ void WaBeI_UHF(void)
 {
   dpdfile2 Fme, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C;
+  psio_tocprint(PSIF_CC_HBAR);
 
   /**** Term I ****/
 
@@ -98,6 +99,7 @@ void WaBeI_UHF(void)
   global_dpd_->file2_init(&Fme, PSIF_CC_OEI, 0, 2, 3, "Fme");
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
   global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
+  global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->file2_close(&Fme);
   global_dpd_->buf4_close(&T2);
@@ -114,6 +116,8 @@ void WaBeI_UHF(void)
   /** Z(Ie,Ba) --> W'(aB,eI) **/
   global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, srqp, 29, 25, "W'(aB,eI)");
   global_dpd_->buf4_close(&Z);
+  debug_check();
+
 
   /**** Term IV ****/
 
@@ -339,6 +343,10 @@ void WaBeI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 25, 29, 25, 0, "W'(aB,eI)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 25, 29, "WeIaB", 1);
   global_dpd_->buf4_close(&W);
+
+  //global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
+  //global_dpd_->buf4_print(&W, "outfile",1);
+  //global_dpd_->buf4_close(&W);
 }
 void NEW_WaBeI_UHF(void)
 {
@@ -352,6 +360,7 @@ void NEW_WaBeI_UHF(void)
   int Gef, Gei, Gab, Ge, Gi, Gf,Gfe, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm, eidx;
   int Gma, ma, m, a, Ga, Gb, I, i, mi, BA,BM, ei, ab, ba, b, BB, fb, bf, fe, ef, mb, am;
   int Gam, Gmb, h;
+  psio_tocprint(PSIF_CC_HBAR);
 
   /***** Term I *****/
   if(params.print == 2) outfile->Printf("F<eI|aB> -> WaBeI ... ");
@@ -367,37 +376,10 @@ void NEW_WaBeI_UHF(void)
   if(params.print == 2) outfile->Printf("\t-F_me t_mI^aB -> WaBeI ... ");
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 23, 29, 23, 29, 0, "tiJaB");
   global_dpd_->file2_init(&Fme, PSIF_CC_OEI, 0, 2, 3, "Fme");
-// global_dpd_->file2_mat_init(&Fme);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
   global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
-//  for(Gei=0; Gei < moinfo.nirreps; Gei++) {
-//    Gmi = Gab = Gei;
-//    global_dpd_->buf4_mat_irrep_init(&T2,Gmi);
-//    global_dpd_->buf4_mat_irrep_rd(&T2,Gmi);
-//    row=0;
-//    for(Ge=0; Ge<moinfo.nirreps; Ge++){
-//      Gm= Ge;
-//      Gi= Gm ^ Gmi;
-//      W.matrix[Gei] = global_dpd_->dpd_block_matrix(moinfo.boccpi[Gi],W.params->coltot[Gei]);
-//      nrows = moinfo.aoccpi[Gm];
-//      ncols = moinfo.boccpi[Gi] * W.params->coltot[Gei];
-//      if(nrows && ncols){
-//        for(EE=0; EE< moinfo.avirtpi[Ge]; EE++){
-//          e = moinfo.avir_off[Ge] + EE;
-//          global_dpd_->buf4_mat_irrep_rd_block(&W, Gei, W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-//          C_DGEMV('t',nrows,ncols, -1.0,&T2.matrix[Gmi][row][0],ncols,
-//              &FME.matrix[Gm][0][EE],moinfo.avirtpi[Ge], 1.0,W.matrix[Gei][0],1);
-//          global_dpd_->buf4_mat_irrep_wrt_block(&W,Gei,W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-//        }
-//      }
-//      row+= moinfo.aoccpi[Gm]* moinfo.boccpi[Gi];
-//      global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.boccpi[Gi],W.params->coltot[Gei]);
-//    }
-//    global_dpd_->buf4_mat_irrep_close(&T2,Gmi);
-//
-//  }
-//  global_dpd_->file2_mat_close(&FME);
   global_dpd_->file2_close(&Fme);
+  global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&T2);
   if(params.print == 2) outfile->Printf("done\n");
@@ -425,7 +407,7 @@ void NEW_WaBeI_UHF(void)
           eidx = moinfo.bvir_off[Ge] + nume;
           Bints_read_Fe_block(&B, Gfe, Gf, eidx);
           global_dpd_->buf4_mat_irrep_rd_block(&W, Gei, W.row_offset[Gei][eidx],moinfo.aoccpi[Gi]);
-          C_DGEMM('n','n',nrows,ncols,nlinks,-1.0,T1.matrix[Gi][0],nlinks,B.matrix[Gfe][0],ncols,
+          C_DGEMM('n','n',nrows,ncols,nlinks,1.0,T1.matrix[Gi][0],nlinks,B.matrix[Gfe][0],ncols,
               1.0,W.matrix[Gei][0],ncols);
           global_dpd_->buf4_mat_irrep_wrt_block(&W, Gei,W.row_offset[Gei][eidx],moinfo.aoccpi[Gi]);
         }
@@ -692,6 +674,7 @@ void Bints_read_Fe_block(dpdbuf4* Buf,int GeF, int GF, int eIdx)
   double value;               //Matrix element
   int Fe;                     //row index (buffer)
   int Ba;                     //col index (file)
+  int aB;                     //col index (file)
   int col;                    //col index (buffer matrix)
   int FIdx, aIdx, BIdx;       //orbital indices
   int nF, na, nB;             //orbital counters
@@ -702,6 +685,7 @@ void Bints_read_Fe_block(dpdbuf4* Buf,int GeF, int GF, int eIdx)
   /*   over and over */
   int FMax,aMax,BMax;         //orbital counter limits
   int FStart, aStart,BStart;  //orbital offset holders
+  dpdparams4 spoofedParams = global_dpd_->params4[29][29];
 
   //for debuging checks
   int coltot = Buf->params->coltot[GeF];
@@ -744,8 +728,10 @@ void Bints_read_Fe_block(dpdbuf4* Buf,int GeF, int GF, int eIdx)
           BIdx = BStart +nB;
           /* Get the file index for this value */
           Ba = Buf->file.params->colidx[BIdx][aIdx];
+          aB = spoofedParams.colidx[aIdx][BIdx];
           /* get the value */
-          value = Buf->file.matrix[GeF][0][Ba];
+          //value = Buf->file.matrix[GeF][0][Ba];
+          value = Buf->file.matrix[GeF][0][aB];
           /* shove it into the Buff's matrix */
           if (col > coltot) outfile->Printf("\nError: Colls have run amok\n");
           Buf->matrix[GeF][nF][col] = value;
