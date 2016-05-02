@@ -1,7 +1,12 @@
 #
-#@BEGIN LICENSE
+# @BEGIN LICENSE
 #
-# PSI4: an ab initio quantum chemistry software package
+# Psi4: an open-source quantum chemistry software package
+#
+# Copyright (c) 2007-2016 The Psi4 Developers.
+#
+# The copyrights for code used from other parties are included in
+# the corresponding files.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +22,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#@END LICENSE
+# @END LICENSE
 #
 
 """Module with functions that call upon those in modules
@@ -53,15 +58,31 @@ except ImportError:
 #   with the energy(), etc. routines by means of lines like those at the end of this file.
 
 
-def fake_file11(filename='fake_file11.dat', **kwargs):
-    r"""Function to print a file *filename* of the old file11 format.
+def fake_file11(wfn, filename='fake_file11.dat', **kwargs):
+    r"""Function to print a file *filename* of the old file11 format
+    from molecule and gradient information in *wfn*.
+
+    .. versionadded:: 0.6
+       *wfn* parameter passed explicitly
+
+    :returns: None
+
+    :type filename: string
+    :param filename: destination file name for file11 file
+
+    :type wfn: :ref:`Wavefunction<sec:psimod_Wavefunction>`
+    :param wfn: set of molecule, gradient from which to generate file11
+
+    :examples:
+
+    >>> # [1] file11 for CISD calculation
+    >>> G, wfn = gradient('cisd', return_wfn=True)
+    >>> fake_file11(wfn, 'mycalc.11')
 
     """
-    # Make sure the molecule the user provided is the active one
-    molecule = kwargs.pop('molecule', psi4.get_active_molecule())
+    molecule = wfn.molecule()
     molecule.update_geometry()
-
-    gradient = psi4.get_gradient()  # TODO deprected usage
+    gradient = wfn.gradient()
 
     with open(filename, 'w') as handle:
         handle.write('%d\n' % (molecule.natom()))
