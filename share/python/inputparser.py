@@ -1,7 +1,12 @@
 #
-#@BEGIN LICENSE
+# @BEGIN LICENSE
 #
-# PSI4: an ab initio quantum chemistry software package
+# Psi4: an open-source quantum chemistry software package
+#
+# Copyright (c) 2007-2016 The Psi4 Developers.
+#
+# The copyrights for code used from other parties are included in
+# the corresponding files.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +22,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#@END LICENSE
+# @END LICENSE
 #
 
 ## Force Python 3 print syntax, if this is python 2.X
@@ -72,14 +77,19 @@ def process_word_quotes(matchobj):
         return "\"%s\"" % (val)
 
 
-def quotify(string):
+def quotify(string, isbasis=False):
     """Function to wrap anything that looks like a string in quotes
-    and to remove leading dollar signs from python variables.
+    and to remove leading dollar signs from python variables. When *basis*
+    is True, allows commas, since basis sets may have commas and are assured to
+    not involve arrays.
 
     """
     # This wraps anything that looks like a string in quotes, and removes leading
     # dollar signs from python variables
-    wordre = re.compile(r'(([$]?)([-+()*.\w\"\'/\\]+))')
+    if isbasis:
+        wordre = re.compile(r'(([$]?)([-+()*.,\w\"\'/\\]+))')
+    else:
+        wordre = re.compile(r'(([$]?)([-+()*.\w\"\'/\\]+))')
     string = wordre.sub(process_word_quotes, string)
     return string
 
@@ -91,7 +101,8 @@ def process_option(spaces, module, key, value, line):
     """
     module = module.upper()
     key = key.upper()
-    value = quotify(value.strip())
+    isbasis = True if 'BASIS' in key else False
+    value = quotify(value.strip(), isbasis=isbasis)
 
     if module == "GLOBALS" or module == "GLOBAL" or module == "" or module.isspace():
         # If it's really a global, we need slightly different syntax

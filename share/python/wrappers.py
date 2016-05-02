@@ -1,7 +1,12 @@
 #
-#@BEGIN LICENSE
+# @BEGIN LICENSE
 #
-# PSI4: an ab initio quantum chemistry software package
+# Psi4: an open-source quantum chemistry software package
+#
+# Copyright (c) 2007-2016 The Psi4 Developers.
+#
+# The copyrights for code used from other parties are included in
+# the corresponding files.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +22,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#@END LICENSE
+# @END LICENSE
 #
 
 """Module with functions that call the four main :py:mod:`driver`
@@ -100,14 +105,18 @@ def return_energy_components():
                            'mp2corl': 'MP2 CORRELATION ENERGY',
                            'mp3corl': 'MP3 CORRELATION ENERGY',
                           'omp3corl': 'OMP3 CORRELATION ENERGY'}
-    VARH['ocepa'] = {
+    VARH['olccd'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
-                         'ocepacorl': 'OCEPA(0) CORRELATION ENERGY'}
-    VARH['cepa0'] = {
+                         'olccdcorl': 'OLCCD CORRELATION ENERGY'}
+    VARH['lccd'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
-                         'cepa0corl': 'CEPA(0) CORRELATION ENERGY'}
+                          'lccdcorl': 'LCCD CORRELATION ENERGY'}
+    VARH['lccsd'] = {
+                            'scftot': 'SCF TOTAL ENERGY',
+                           'mp2corl': 'MP2 CORRELATION ENERGY',
+                         'lccsdcorl': 'LCCSD CORRELATION ENERGY'}
     VARH['cepa(0)'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
@@ -151,15 +160,15 @@ def return_energy_components():
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
                            'cc3corl': 'CC3 CORRELATION ENERGY'}
-    VARH['fno-df-ccsd'] = {
+    VARH['fno-ccsd'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
-                   'fno-df-ccsdcorl': 'CCSD CORRELATION ENERGY'}
-    VARH['fno-df-ccsd(t)'] = {
+                      'fno-ccsdcorl': 'CCSD CORRELATION ENERGY'}
+    VARH['fno-ccsd(t)'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
                           'ccsdcorl': 'CCSD CORRELATION ENERGY',
-                'fno-df-ccsd(t)corl': 'CCSD(T) CORRELATION ENERGY'}
+                   'fno-ccsd(t)corl': 'CCSD(T) CORRELATION ENERGY'}
     VARH['qcisd(t)'] = {
                             'scftot': 'SCF TOTAL ENERGY',
                            'mp2corl': 'MP2 CORRELATION ENERGY',
@@ -270,14 +279,24 @@ def convert(p, symbol):
 
 
 def auto_fragments(**kwargs):
-    r"""
-    Detects fragments if the user does not supply them.
-    Currently only used for the WebMO implementation of SAPT
-    Returns a new fragmented molecule
+    r"""Detects fragments if the user does not supply them.
+    Currently only used for the WebMO implementation of SAPT.
 
-    usage: auto_fragment()
+    :returns: :ref:`Molecule<sec:psimod_Molecule>`) |w--w| fragmented molecule.
 
-    auto_fragment(molecule=mol)
+    :type molecule: :ref:`molecule <op_py_molecule>`
+    :param molecule: ``h2o`` || etc.
+
+        The target molecule, if not the last molecule defined.
+
+    :examples:
+
+    >>> # [1] replicates with cbs() the simple model chemistry scf/cc-pVDZ: set basis cc-pVDZ energy('scf')
+    >>> molecule mol {\nH 0.0 0.0 0.0\nH 2.0 0.0 0.0\nF 0.0 1.0 0.0\nF 2.0 1.0 0.0\n}
+    >>> print mol.nfragments()  # 1
+    >>> fragmol = auto_fragments()
+    >>> print fragmol.nfragments()  # 2
+
     """
     # Make sure the molecule the user provided is the active one
     molecule = kwargs.pop('molecule', psi4.get_active_molecule())
@@ -298,7 +317,7 @@ def auto_fragments(**kwargs):
     White = []
     Black = []
     F = geom.split('\n')
-    for f in range(0, numatoms):
+    for f in range(numatoms):
         A = F[f + 1].split()
         symbol[f] = A[0]
         X[f] = float(A[1])
@@ -334,10 +353,10 @@ def auto_fragments(**kwargs):
             White.remove(White[0])
         frag += 1
 
-    new_geom = """\n0 1\n"""
+    new_geom = """\n"""
     for i in Fragment[0]:
         new_geom = new_geom + F[i].lstrip() + """\n"""
-    new_geom = new_geom + """--\n0 1\n"""
+    new_geom = new_geom + """--\n"""
     for j in Fragment[1]:
         new_geom = new_geom + F[j].lstrip() + """\n"""
     new_geom = new_geom + """units angstrom\n"""
@@ -621,36 +640,39 @@ def n_body(name, **kwargs):
 
     if bsse == 'on' or bsse == 'both':
         psi4.print_out('     => Full Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         for n in Ns:
             for k in range(len(energies_full[n])):
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, energies_full[n][k],
-                   p4const.psi_hartree2kcalmol * energies_full[n][k]))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, energies_full[n][k],
+                   p4const.psi_hartree2kcalmol * energies_full[n][k],
+                   p4const.psi_hartree2kJmol * energies_full[n][k]))
         psi4.print_out('\n')
 
     if bsse == 'off' or bsse == 'both':
         psi4.print_out('     => Cluster Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         for n in Ns:
             for k in range(len(energies_mon[n])):
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, energies_mon[n][k],
-                   p4const.psi_hartree2kcalmol * energies_mon[n][k]))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, energies_mon[n][k],
+                   p4const.psi_hartree2kcalmol * energies_mon[n][k],
+                   p4const.psi_hartree2kJmol * energies_mon[n][k]))
         psi4.print_out('\n')
 
     if bsse == 'both':
         psi4.print_out('     => BSSE Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "Delta E [H]", "Delta E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "Delta E [Eh]", "Delta E [kcal/mol]", "Delta E [kJ/mol]"))
         for n in Ns:
             for k in range(len(energies_mon[n])):
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, energies_full[n][k] - energies_mon[n][k],
-                   p4const.psi_hartree2kcalmol * (energies_full[n][k] - energies_mon[n][k])))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, energies_full[n][k] - energies_mon[n][k],
+                   p4const.psi_hartree2kcalmol * (energies_full[n][k] - energies_mon[n][k]),
+                   p4const.psi_hartree2kJmol * (energies_full[n][k] - energies_mon[n][k])))
         psi4.print_out('\n')
 
     psi4.print_out('    ==> N-Body Interaction Energy Analysis: N-Body Energies <==\n\n')
 
     if bsse == 'on' or bsse == 'both':
         psi4.print_out('     => Full Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         energies_n_full = {}
         for n in Ns:
             if n == 1:
@@ -660,7 +682,9 @@ def n_body(name, **kwargs):
                 E = energies_full[n][k]
                 for l in range(len(combos[n][k])):
                     E -= energies_full[1][combos[n][k][l] - 1]
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, E, p4const.psi_hartree2kcalmol * E))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, E, 
+                    p4const.psi_hartree2kcalmol * E,
+                    p4const.psi_hartree2kJmol * E))
                 En += E
             energies_n_full[n] = En
         for n in Ns:
@@ -669,13 +693,14 @@ def n_body(name, **kwargs):
             nn = molecule.nfragments() - 2
             kk = n - 2
             energies_n_full[n] /= (math.factorial(nn) / (math.factorial(kk) * math.factorial(nn - kk)))
-            psi4.print_out('     %6d %6s %24.16E %24.16E\n' % (n, 'Total', energies_n_full[n],
-               p4const.psi_hartree2kcalmol * energies_n_full[n]))
+            psi4.print_out('     %6d %6s %24.16E %24.16E %24.16E\n' % (n, 'Total', energies_n_full[n],
+               p4const.psi_hartree2kcalmol * energies_n_full[n],
+               p4const.psi_hartree2kJmol * energies_n_full[n]))
         psi4.print_out('\n')
 
     if bsse == 'off' or bsse == 'both':
         psi4.print_out('     => Cluster Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         energies_n_mon = {}
         for n in Ns:
             if n == 1:
@@ -685,7 +710,9 @@ def n_body(name, **kwargs):
                 E = energies_mon[n][k]
                 for l in range(len(combos[n][k])):
                     E -= energies_mon[1][combos[n][k][l] - 1]
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, E, p4const.psi_hartree2kcalmol * E))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, E,
+                    p4const.psi_hartree2kcalmol * E,
+                    p4const.psi_hartree2kJmol * E))
                 En += E
             energies_n_mon[n] = En
         for n in Ns:
@@ -694,13 +721,14 @@ def n_body(name, **kwargs):
             nn = molecule.nfragments() - 2
             kk = n - 2
             energies_n_mon[n] /= (math.factorial(nn) / (math.factorial(kk) * math.factorial(nn - kk)))
-            psi4.print_out('     %6d %6s %24.16E %24.16E\n' % (n, 'Total', energies_n_mon[n],
-               p4const.psi_hartree2kcalmol * energies_n_mon[n]))
+            psi4.print_out('     %6d %6s %24.16E %24.16E %24.16E\n' % (n, 'Total', energies_n_mon[n],
+               p4const.psi_hartree2kcalmol * energies_n_mon[n],
+               p4const.psi_hartree2kJmol * energies_n_mon[n]))
         psi4.print_out('\n')
 
     if bsse == 'both':
         psi4.print_out('     => BSSE Results <=\n\n')
-        psi4.print_out('     %6s %6s %24s %24s\n' % ("N-Body", "Combo", "Delta E [H]", "Delta E [kcal mol^-1]"))
+        psi4.print_out('     %6s %6s %24s %24s %24s\n' % ("N-Body", "Combo", "Delta E [Eh]", "Delta E [kcal/mol]", "Delta E [kJ/mol]"))
         energies_n_bsse = {}
         for n in Ns:
             if n == 1:
@@ -711,7 +739,9 @@ def n_body(name, **kwargs):
                 for l in range(len(combos[n][k])):
                     E -= energies_full[1][combos[n][k][l] - 1]
                     E += energies_mon[1][combos[n][k][l] - 1]
-                psi4.print_out('     %6d %6d %24.16E %24.16E\n' % (n, k + 1, E, p4const.psi_hartree2kcalmol * E))
+                psi4.print_out('     %6d %6d %24.16E %24.16E %24.16E\n' % (n, k + 1, E,
+                    p4const.psi_hartree2kcalmol * E,
+                    p4const.psi_hartree2kJmol * E))
                 En += E
             energies_n_bsse[n] = En
         for n in Ns:
@@ -720,8 +750,9 @@ def n_body(name, **kwargs):
             nn = molecule.nfragments() - 2
             kk = n - 2
             energies_n_bsse[n] /= (math.factorial(nn) / (math.factorial(kk) * math.factorial(nn - kk)))
-            psi4.print_out('     %6d %6s %24.16E %24.16E\n' % (n, 'Total', energies_n_bsse[n],
-               p4const.psi_hartree2kcalmol * energies_n_bsse[n]))
+            psi4.print_out('     %6d %6s %24.16E %24.16E %24.16E\n' % (n, 'Total', energies_n_bsse[n],
+               p4const.psi_hartree2kcalmol * energies_n_bsse[n],
+               p4const.psi_hartree2kJmol * energies_n_bsse[n]))
         psi4.print_out('\n')
 
     psi4.print_out('    ==> N-Body Interaction Energy Analysis: Non-Additivities <==\n\n')
@@ -729,37 +760,43 @@ def n_body(name, **kwargs):
     if bsse == 'on' or bsse == 'both':
         energies_n_full[1] = 0.0
         psi4.print_out('     => Full Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %24s %24s\n' % ("N-Body", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %24s %24s %24s\n' % ("N-Body", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         for k in range(len(Ns)):
             n = Ns[k]
             if n == 1:
                 continue
             E = energies_n_full[Ns[k]] - energies_n_full[Ns[k + 1]]
-            psi4.print_out('     %6s %24.16E %24.16E\n' % (n, E, p4const.psi_hartree2kcalmol * E))
+            psi4.print_out('     %6s %24.16E %24.16E %24.16E\n' % (n, E,
+                p4const.psi_hartree2kcalmol * E,
+                p4const.psi_hartree2kJmol * E))
         psi4.print_out('\n')
 
     if bsse == 'off' or bsse == 'both':
         energies_n_mon[1] = 0.0
         psi4.print_out('     => Cluster Basis Set Results <=\n\n')
-        psi4.print_out('     %6s %24s %24s\n' % ("N-Body", "E [H]", "E [kcal mol^-1]"))
+        psi4.print_out('     %6s %24s %24s %24s\n' % ("N-Body", "E [Eh]", "E [kcal/mol]", "E [kJ/mol]"))
         for k in range(len(Ns)):
             n = Ns[k]
             if n == 1:
                 continue
             E = energies_n_mon[Ns[k]] - energies_n_mon[Ns[k + 1]]
-            psi4.print_out('     %6s %24.16E %24.16E\n' % (n, E, p4const.psi_hartree2kcalmol * E))
+            psi4.print_out('     %6s %24.16E %24.16E %24.16E\n' % (n, E,
+                p4const.psi_hartree2kcalmol * E,
+                p4const.psi_hartree2kJmol * E))
         psi4.print_out('\n')
 
     if bsse == 'both':
         energies_n_bsse[1] = 0.0
         psi4.print_out('     => BSSE Results <=\n\n')
-        psi4.print_out('     %6s %24s %24s\n' % ("N-Body", "Delta E [H]", "Delta E [kcal mol^-1]"))
+        psi4.print_out('     %6s %24s %24s %24s\n' % ("N-Body", "Delta E [Eh]", "Delta E [kcal/mol]", "Delta E [kJ/mol]"))
         for k in range(len(Ns)):
             n = Ns[k]
             if n == 1:
                 continue
             E = energies_n_bsse[Ns[k]] - energies_n_bsse[Ns[k + 1]]
-            psi4.print_out('     %6s %24.16E %24.16E\n' % (n, E, p4const.psi_hartree2kcalmol * E))
+            psi4.print_out('     %6s %24.16E %24.16E %24.16E\n' % (n, E,
+                p4const.psi_hartree2kcalmol * E,
+                p4const.psi_hartree2kJmol * E))
         psi4.print_out('\n')
 
     # Put everything back the way it was
@@ -908,7 +945,7 @@ def cp(name, **kwargs):
     psioh.set_specific_retention(97, False)
 
     if not check_bsse:
-        cp_table = p4util.Table(rows=["System:"], cols=["Energy (full):"])
+        cp_table = p4util.Table(rows=["System:"], cols=["Energy (full):"], width=24)
         cp_table["Complex"] = [e_dimer]
         for cluster_n in range(0, len(monomers)):
             key = "Monomer %d" % (cluster_n + 1)
@@ -922,7 +959,7 @@ def cp(name, **kwargs):
         psi4.set_variable('CP-CORRECTED 2-BODY INTERACTION ENERGY', e_full)
 
     else:
-        cp_table = Table(rows=["System:"], cols=["Energy (full):", "Energy (monomer):", "BSSE:"])
+        cp_table = Table(rows=["System:"], cols=["Energy (full):", "Energy (monomer):", "BSSE:"], width=24)
         cp_table["Complex"] = [e_dimer, 0.0, 0.0]
         for cluster_n in range(0, len(monomers)):
             key = "Monomer %d" % (cluster_n + 1)
@@ -942,16 +979,24 @@ def cp(name, **kwargs):
     p4util.banner("CP Computation: Results.")
     psi4.print_out("\n")
 
-    p4util.banner("Hartree", 2)
+    p4util.banner("[Eh]", 2)
     psi4.print_out("\n")
 
     psi4.print_out(str(cp_table))
 
     psi4.print_out("\n")
-    p4util.banner("kcal*mol^-1", 2)
+    p4util.banner("[kcal/mol]", 2)
     psi4.print_out("\n")
 
     cp_table.scale()
+
+    psi4.print_out(str(cp_table))
+
+    psi4.print_out("\n")
+    p4util.banner("[kJ/mol]", 2)
+    psi4.print_out("\n")
+
+    cp_table.scale(Factor=p4const.psi_hartree2kJmol/p4const.psi_hartree2kcalmol)
 
     psi4.print_out(str(cp_table))
     return e_full
@@ -992,7 +1037,7 @@ def database(name, db_name, **kwargs):
        * Python dictionaries of results accessible as ``DB_RGT`` and ``DB_RXN``.
 
     .. note:: It is very easy to make a database from a collection of xyz files
-        using the script :source:`lib/scripts/ixyz2database.pl`.
+        using the script :source:`share/scripts/ixyz2database.pl`.
         See :ref:`sec:createDatabase` for details.
 
     .. caution:: Some features are not yet implemented. Buy a developer some coffee.
@@ -1015,7 +1060,7 @@ def database(name, db_name, **kwargs):
 
         Second argument, usually unlabeled. Indicates the requested database
         name, matching (case insensitive) the name of a python file in
-        ``psi4/lib/databases`` or :envvar:`PYTHONPATH`.  Consult that
+        ``psi4/share/databases`` or :envvar:`PYTHONPATH`.  Consult that
         directory for available databases and literature citations.
 
     :type func: :ref:`function <op_py_function>`
@@ -1155,6 +1200,7 @@ def database(name, db_name, **kwargs):
         ':' + ':'.join([os.path.abspath(x) for x in os.environ.get('PSIPATH', '').split(':')]) + \
         libraryPath
     sys.path = [sys.path[0]] + dbPath.split(':') + sys.path[1:]
+    # TODO this should be modernized a la interface_cfour
 
     # Define path and load module for requested database
     database = p4util.import_ignorecase(db_name)
@@ -1215,25 +1261,19 @@ def database(name, db_name, **kwargs):
         raise ValidationError('Symmetry mode \'%s\' not valid.' % (db_symm))
 
     #   Option mode of operation- whether db run in one job or files farmed out
-    if not('db_mode' in kwargs):
-        if ('mode' in kwargs):
-            kwargs['db_mode'] = kwargs['mode']
-            del kwargs['mode']
-        else:
-            kwargs['db_mode'] = 'continuous'
-    db_mode = kwargs['db_mode']
+    db_mode = kwargs.pop('db_mode', kwargs.pop('mode', 'continuous')).lower()
+    kwargs['db_mode'] = db_mode
 
-    if (db_mode.lower() == 'continuous'):
+    if db_mode == 'continuous':
         pass
-    elif (db_mode.lower() == 'sow'):
+    elif db_mode == 'sow':
         pass
-    elif (db_mode.lower() == 'reap'):
-        if 'linkage' in kwargs:
-            db_linkage = kwargs['linkage']
-        else:
-            raise ValidationError('Database execution mode \'reap\' requires a linkage option.')
+    elif db_mode == 'reap':
+        db_linkage = kwargs.get('linkage', None)
+        if db_linkage is None:
+            raise ValidationError("""Database execution mode 'reap' requires a linkage option.""")
     else:
-        raise ValidationError('Database execution mode \'%s\' not valid.' % (db_mode))
+        raise ValidationError("""Database execution mode '%s' not valid.""" % (db_mode))
 
     #   Option counterpoise- whether for interaction energy databases run in bsse-corrected or not
     db_cp = 'no'
@@ -1304,6 +1344,7 @@ def database(name, db_name, **kwargs):
                 raise ValidationError('Special benchmark \'%s\' not available for database %s.' % (db_benchmark, db_name))
 
     #   Option tabulate- whether tables of variables other than primary energy method are formed
+    # TODO db(func=cbs,tabulate=[non-current-energy])  # broken
     db_tabulate = []
     if 'tabulate' in kwargs:
         db_tabulate = kwargs['tabulate']
@@ -1361,7 +1402,7 @@ def database(name, db_name, **kwargs):
     psi4.print_out("\n")
 
     #   write index of calcs to output file
-    if (db_mode.lower() == 'continuous'):
+    if db_mode == 'continuous':
         instructions = """\n    The database single-job procedure has been selected through mode='continuous'.\n"""
         instructions += """    Calculations for the reagents will proceed in the order below and will be followed\n"""
         instructions += """    by summary results for the database.\n\n"""
@@ -1372,7 +1413,7 @@ def database(name, db_name, **kwargs):
         psi4.print_out(instructions)
 
     #   write sow/reap instructions and index of calcs to output file and reap input file
-    if (db_mode.lower() == 'sow'):
+    if db_mode == 'sow':
         instructions = """\n    The database sow/reap procedure has been selected through mode='sow'. In addition\n"""
         instructions += """    to this output file (which contains no quantum chemical calculations), this job\n"""
         instructions += """    has produced a number of input files (%s-*.in) for individual database members\n""" % (dbse)
@@ -1391,11 +1432,10 @@ def database(name, db_name, **kwargs):
         instructions += """    the database wrapper option mode='continuous'.\n\n"""
         psi4.print_out(instructions)
 
-        fmaster = open('%s-master.in' % (dbse), 'w')
-        fmaster.write('# This is a psi4 input file auto-generated from the database() wrapper.\n\n')
-        fmaster.write("database('%s', '%s', mode='reap', cp='%s', rlxd='%s', zpe='%s', benchmark='%s', linkage=%d, subset=%s, tabulate=%s)\n\n" %
-            (name, db_name, db_cp, db_rlxd, db_zpe, db_benchmark, os.getpid(), HRXN, db_tabulate))
-        fmaster.close()
+        with open('%s-master.in' % (dbse), 'w') as fmaster:
+            fmaster.write('# This is a psi4 input file auto-generated from the database() wrapper.\n\n')
+            fmaster.write("database('%s', '%s', mode='reap', cp='%s', rlxd='%s', zpe='%s', benchmark='%s', linkage=%d, subset=%s, tabulate=%s)\n\n" %
+                (name, db_name, db_cp, db_rlxd, db_zpe, db_benchmark, os.getpid(), HRXN, db_tabulate))
 
     #   Loop through chemical systems
     ERGT = {}
@@ -1458,7 +1498,7 @@ def database(name, db_name, **kwargs):
         # continuous: defines necessary commands, executes energy(method) call, and collects results into dictionary
         # sow: opens individual reagent input file, writes the necessary commands, and writes energy(method) call
         # reap: opens individual reagent output file, collects results into a dictionary
-        if (db_mode.lower() == 'continuous'):
+        if db_mode == 'continuous':
             exec(banners)
 
             molecule = psi4.Molecule.create_molecule_from_string(GEOS[rgt].create_psi4_string_from_molecule())
@@ -1478,31 +1518,30 @@ def database(name, db_name, **kwargs):
             #psi4.opt_clean()
             psi4.clean_variables()
 
-        elif (db_mode.lower() == 'sow'):
-            freagent = open('%s.in' % (rgt), 'w')
-            freagent.write('# This is a psi4 input file auto-generated from the database() wrapper.\n\n')
-            freagent.write(banners)
-            freagent.write(p4util.format_molecule_for_input(GEOS[rgt]))
+        elif db_mode == 'sow':
+            with open('%s.in' % (rgt), 'w') as freagent:
+                freagent.write('# This is a psi4 input file auto-generated from the database() wrapper.\n\n')
+                freagent.write(banners)
+                freagent.write(p4util.format_molecule_for_input(GEOS[rgt], 'dbmol'))
 
-            freagent.write(commands)
-            freagent.write('''\npickle_kw = ("""''')
-            pickle.dump(kwargs, freagent)
-            freagent.write('''""")\n''')
-            freagent.write("""\nkwargs = pickle.loads(pickle_kw)\n""")
-            freagent.write("""electronic_energy = %s(**kwargs)\n\n""" % (func.__name__))
-            freagent.write("""psi4.print_variables()\n""")
-            freagent.write("""psi4.print_out('\\nDATABASE RESULT: computation %d for reagent %s """
-                % (os.getpid(), rgt))
-            freagent.write("""yields electronic energy %20.12f\\n' % (electronic_energy))\n\n""")
-            freagent.write("""psi4.set_variable('NATOM', molecule.natom())\n""")
-            for envv in db_tabulate:
-                freagent.write("""psi4.print_out('DATABASE RESULT: computation %d for reagent %s """
+                freagent.write(commands)
+                freagent.write('''\npickle_kw = ("""''')
+                pickle.dump(kwargs, freagent)
+                freagent.write('''""")\n''')
+                freagent.write("""\nkwargs = pickle.loads(pickle_kw)\n""")
+                freagent.write("""electronic_energy = %s(**kwargs)\n\n""" % (func.__name__))
+                freagent.write("""psi4.print_variables()\n""")
+                freagent.write("""psi4.print_out('\\nDATABASE RESULT: computation %d for reagent %s """
                     % (os.getpid(), rgt))
-                freagent.write("""yields variable value    %20.12f for variable %s\\n' % (psi4.get_variable(""")
-                freagent.write("""'%s'), '%s'))\n""" % (envv.upper(), envv.upper()))
-            freagent.close()
+                freagent.write("""yields electronic energy %20.12f\\n' % (electronic_energy))\n\n""")
+                freagent.write("""psi4.set_variable('NATOM', dbmol.natom())\n""")
+                for envv in db_tabulate:
+                    freagent.write("""psi4.print_out('DATABASE RESULT: computation %d for reagent %s """
+                        % (os.getpid(), rgt))
+                    freagent.write("""yields variable value    %20.12f for variable %s\\n' % (psi4.get_variable(""")
+                    freagent.write("""'%s'), '%s'))\n""" % (envv.upper(), envv.upper()))
 
-        elif (db_mode.lower() == 'reap'):
+        elif db_mode == 'reap':
             ERGT[rgt] = 0.0
             for envv in db_tabulate:
                 VRGT[rgt][envv.upper()] = 0.0
@@ -1541,7 +1580,7 @@ def database(name, db_name, **kwargs):
                 freagent.close()
 
     #   end sow after writing files
-    if (db_mode.lower() == 'sow'):
+    if db_mode == 'sow':
         return 0.0
 
     # Reap all the necessary reaction computations
@@ -1553,7 +1592,7 @@ def database(name, db_name, **kwargs):
     for rxn in HRXN:
         maxactv.append(len(ACTV[dbse + '-' + str(rxn)]))
     maxrgt = max(maxactv)
-    table_delimit = '-' * (54 + 20 * maxrgt)
+    table_delimit = '-' * (62 + 20 * maxrgt)
     tables = ''
 
     #   find any reactions that are incomplete
@@ -1581,7 +1620,7 @@ def database(name, db_name, **kwargs):
             db_rxn = dbse + '-' + str(rxn)
 
             if FAIL[rxn]:
-                tables += """\n%23s   %8s %8s   %8s""" % (db_rxn, '', '****', '')
+                tables += """\n%23s   %8s %8s %8s %8s""" % (db_rxn, '', '****', '', '')
                 for i in range(len(ACTV[db_rxn])):
                     tables += """ %16.8f %2.0f""" % (VRGT[ACTV[db_rxn][i]][envv], RXNM[db_rxn][ACTV[db_rxn][i]])
 
@@ -1590,7 +1629,7 @@ def database(name, db_name, **kwargs):
                 for i in range(len(ACTV[db_rxn])):
                     VRXN[db_rxn][envv] += VRGT[ACTV[db_rxn][i]][envv] * RXNM[db_rxn][ACTV[db_rxn][i]]
 
-                tables += """\n%23s        %16.8f       """ % (db_rxn, VRXN[db_rxn][envv])
+                tables += """\n%23s        %16.8f                  """ % (db_rxn, VRXN[db_rxn][envv])
                 for i in range(len(ACTV[db_rxn])):
                     tables += """ %16.8f %2.0f""" % (VRGT[ACTV[db_rxn][i]][envv], RXNM[db_rxn][ACTV[db_rxn][i]])
         tables += """\n   %s\n""" % (table_delimit)
@@ -1609,7 +1648,7 @@ def database(name, db_name, **kwargs):
         db_rxn = dbse + '-' + str(rxn)
 
         if FAIL[rxn]:
-            tables += """\n%23s   %8.4f %8s   %8s""" % (db_rxn, BIND[db_rxn], '****', '****')
+            tables += """\n%23s   %8.4f %8s %10s %10s""" % (db_rxn, BIND[db_rxn], '****', '****', '****')
             for i in range(len(ACTV[db_rxn])):
                 tables += """ %16.8f %2.0f""" % (ERGT[ACTV[db_rxn][i]], RXNM[db_rxn][ACTV[db_rxn][i]])
 
@@ -1619,7 +1658,8 @@ def database(name, db_name, **kwargs):
                 ERXN[db_rxn] += ERGT[ACTV[db_rxn][i]] * RXNM[db_rxn][ACTV[db_rxn][i]]
             error = p4const.psi_hartree2kcalmol * ERXN[db_rxn] - BIND[db_rxn]
 
-            tables += """\n%23s   %8.4f %8.4f   %8.4f""" % (db_rxn, BIND[db_rxn], p4const.psi_hartree2kcalmol * ERXN[db_rxn], error)
+            tables += """\n%23s   %8.4f %8.4f %10.4f %10.4f""" % (db_rxn, BIND[db_rxn], p4const.psi_hartree2kcalmol * ERXN[db_rxn],
+                error, error * p4const.psi_cal2J)
             for i in range(len(ACTV[db_rxn])):
                 tables += """ %16.8f %2.0f""" % (ERGT[ACTV[db_rxn][i]], RXNM[db_rxn][ACTV[db_rxn][i]])
 
@@ -1639,11 +1679,11 @@ def database(name, db_name, **kwargs):
         MADerror /= float(count_rxn)
         RMSDerror = math.sqrt(RMSDerror / float(count_rxn))
 
-        tables += """%23s   %19s %8.4f\n""" % ('Minimal Dev', '', minDerror)
-        tables += """%23s   %19s %8.4f\n""" % ('Maximal Dev', '', maxDerror)
-        tables += """%23s   %19s %8.4f\n""" % ('Mean Signed Dev', '', MSDerror)
-        tables += """%23s   %19s %8.4f\n""" % ('Mean Absolute Dev', '', MADerror)
-        tables += """%23s   %19s %8.4f\n""" % ('RMS Dev', '', RMSDerror)
+        tables += """%23s %19s %10.4f %10.4f\n""" % ('Minimal Dev', '', minDerror, minDerror * p4const.psi_cal2J)
+        tables += """%23s %19s %10.4f %10.4f\n""" % ('Maximal Dev', '', maxDerror, maxDerror * p4const.psi_cal2J)
+        tables += """%23s %19s %10.4f %10.4f\n""" % ('Mean Signed Dev', '', MSDerror, MSDerror * p4const.psi_cal2J)
+        tables += """%23s %19s %10.4f %10.4f\n""" % ('Mean Absolute Dev', '', MADerror, MADerror * p4const.psi_cal2J)
+        tables += """%23s %19s %10.4f %10.4f\n""" % ('RMS Dev', '', RMSDerror, RMSDerror * p4const.psi_cal2J)
         tables += """   %s\n""" % (table_delimit)
 
         psi4.set_variable('%s DATABASE MEAN SIGNED DEVIATION' % (db_name), MSDerror)
@@ -1676,18 +1716,18 @@ def tblhead(tbl_maxrgt, tbl_delimit, ttype):
     tbl_str = ''
     tbl_str += """   %s""" % (tbl_delimit)
     if ttype == 1:
-        tbl_str += """\n%23s %19s   %8s""" % ('Reaction', 'Reaction Energy', 'Error')
+        tbl_str += """\n%23s %19s %21s""" % ('Reaction', 'Reaction Energy', 'Reaction Error')
     elif ttype == 2:
-        tbl_str += """\n%23s     %19s %6s""" % ('Reaction', 'Reaction Value', '')
+        tbl_str += """\n%23s     %19s %17s""" % ('Reaction', 'Reaction Value', '')
     for i in range(tbl_maxrgt):
         tbl_str += """%20s""" % ('Reagent ' + str(i + 1))
     if ttype == 1:
-        tbl_str += """\n%23s   %8s %8s %8s""" % ('', 'Ref', 'Calc', '[kcal/mol]')
+        tbl_str += """\n%23s   %8s %8s %10s %10s""" % ('', 'Ref', 'Calc', '[kcal/mol]', '[kJ/mol]')
     elif ttype == 2:
-        tbl_str += """\n%54s""" % ('')
+        tbl_str += """\n%65s""" % ('')
     for i in range(tbl_maxrgt):
         if ttype == 1:
-            tbl_str += """%20s""" % ('[H] Wt')
+            tbl_str += """%20s""" % ('[Eh] Wt')
         elif ttype == 2:
             tbl_str += """%20s""" % ('Value Wt')
     tbl_str += """\n   %s""" % (tbl_delimit)
@@ -1766,8 +1806,9 @@ def complete_basis_set(name, **kwargs):
            * omp2
            * omp2.5
            * omp3
-           * ocepa
-           * cepa0
+           * olccd
+           * lccd
+           * lccsd
            * cepa(0)
            * cepa(1)
            * cepa(3)
@@ -1776,12 +1817,12 @@ def complete_basis_set(name, **kwargs):
            * qcisd
            * cc2
            * ccsd
-           * fno-df-ccsd
+           * fno-ccsd
            * bccd
            * cc3
            * qcisd(t)
            * ccsd(t)
-           * fno-df-ccsd(t)
+           * fno-ccsd(t)
            * bccd(t)
            * cisd
            * cisdt
@@ -2054,7 +2095,7 @@ def complete_basis_set(name, **kwargs):
     # Establish method for reference energy
     if 'scf_wfn' in kwargs:
         cbs_scf_wfn = kwargs['scf_wfn'].lower()
-    elif 'name' in kwargs and ((lowername == 'scf') or (lowername == 'df-scf') or (lowername == 'c4-scf')):
+    elif 'name' in kwargs and (lowername in ['scf', 'c4-scf']):
         cbs_scf_wfn = lowername
     else:
         cbs_scf_wfn = 'scf'
@@ -2064,7 +2105,7 @@ def complete_basis_set(name, **kwargs):
 
     # Establish method for correlation energy
     if 'name' in kwargs:
-        if not((lowername == 'scf') or (lowername == 'df-scf') or (lowername == 'c4-scf')):
+        if lowername not in ['scf', 'c4-scf']:
             do_corl = True
             cbs_corl_wfn = kwargs['name'].lower()
     if 'corl_wfn' in kwargs:
@@ -2476,7 +2517,7 @@ def complete_basis_set(name, **kwargs):
     tables = ''
     tables += """\n   ==> %s <==\n\n""" % ('Components')
     tables += table_delimit
-    tables += """     %6s %20s %1s %-26s %3s %16s   %-s\n""" % ('', 'Method', '/', 'Basis', 'Rqd', 'Energy [H]', 'Variable')
+    tables += """     %6s %20s %1s %-26s %3s %16s   %-s\n""" % ('', 'Method', '/', 'Basis', 'Rqd', 'Energy [Eh]', 'Variable')
     tables += table_delimit
     for job in JOBS_EXT:
         star = ''
@@ -2489,7 +2530,7 @@ def complete_basis_set(name, **kwargs):
 
     tables += """\n   ==> %s <==\n\n""" % ('Stages')
     tables += table_delimit
-    tables += """     %6s %20s %1s %-27s %2s %16s   %-s\n""" % ('Stage', 'Method', '/', 'Basis', 'Wt', 'Energy [H]', 'Scheme')
+    tables += """     %6s %20s %1s %-27s %2s %16s   %-s\n""" % ('Stage', 'Method', '/', 'Basis', 'Wt', 'Energy [Eh]', 'Scheme')
     tables += table_delimit
     for stage in GRAND_NEED:
         tables += """     %6s %20s %1s %-27s %2d %16.8f   %-s\n""" % (stage['d_stage'], stage['d_wfn'],
@@ -2498,7 +2539,7 @@ def complete_basis_set(name, **kwargs):
 
     tables += """\n   ==> %s <==\n\n""" % ('CBS')
     tables += table_delimit
-    tables += """     %6s %20s %1s %-27s %2s %16s   %-s\n""" % ('Stage', 'Method', '/', 'Basis', '', 'Energy [H]', 'Scheme')
+    tables += """     %6s %20s %1s %-27s %2s %16s   %-s\n""" % ('Stage', 'Method', '/', 'Basis', '', 'Energy [Eh]', 'Scheme')
     tables += table_delimit
     if do_scf:
         tables += """     %6s %20s %1s %-27s %2s %16.8f   %-s\n""" % (GRAND_NEED[0]['d_stage'], GRAND_NEED[0]['d_wfn'],

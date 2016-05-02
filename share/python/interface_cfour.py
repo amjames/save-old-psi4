@@ -1,7 +1,12 @@
 #
-#@BEGIN LICENSE
+# @BEGIN LICENSE
 #
-# PSI4: an ab initio quantum chemistry software package
+# Psi4: an open-source quantum chemistry software package
+#
+# Copyright (c) 2007-2016 The Psi4 Developers.
+#
+# The copyrights for code used from other parties are included in
+# the corresponding files.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +22,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-#@END LICENSE
+# @END LICENSE
 #
 
 """Module with functions for Psi4/Cfour interface. Portions that require
@@ -132,8 +137,13 @@ def run_cfour(name, **kwargs):
     os.chdir(cfour_tmpdir)
 
     # Find environment by merging PSIPATH and PATH environment variables
-    lenv = os.environ
-    lenv['PATH'] = ':'.join([os.path.abspath(x) for x in os.environ.get('PSIPATH', '').split(':')]) + ':' + lenv.get('PATH') + ':' + psi4.Process.environment["PSIDATADIR"] + '/basis' + ':' + psi4.psi_top_srcdir() + '/lib/basis'
+    lenv = {
+        'PATH': ':'.join([os.path.abspath(x) for x in os.environ.get('PSIPATH', '').split(':') if x != '']) + \
+                ':' + os.environ.get('PATH') + \
+                ':' + psi4.Process.environment["PSIDATADIR"] + '/basis' + \
+                ':' + psi4.psi_top_srcdir() + '/share/basis',
+        'LD_LIBRARY_PATH': os.environ.get('LD_LIBRARY_PATH')
+        }
 
     if 'path' in kwargs:
         lenv['PATH'] = kwargs['path'] + ':' + lenv['PATH']
