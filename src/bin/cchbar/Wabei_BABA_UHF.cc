@@ -99,7 +99,7 @@ void WaBeI_UHF(void)
   global_dpd_->file2_init(&Fme, PSIF_CC_OEI, 0, 2, 3, "Fme");
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
   global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
-  global_dpd_->buf4_print(&W,"outfile",1);
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->file2_close(&Fme);
   global_dpd_->buf4_close(&T2);
@@ -116,7 +116,7 @@ void WaBeI_UHF(void)
   /** Z(Ie,Ba) --> W'(aB,eI) **/
   global_dpd_->buf4_sort(&Z, PSIF_CC_TMP0, srqp, 29, 25, "W'(aB,eI)");
   global_dpd_->buf4_close(&Z);
-  debug_check();
+ // debug_check();
 
 
   /**** Term IV ****/
@@ -360,7 +360,7 @@ void NEW_WaBeI_UHF(void)
   int Gef, Gei, Gab, Ge, Gi, Gf,Gfe, Gmi, Gm, nrows, ncols, nlinks, EE, e, row, Gnm, eidx;
   int Gma, ma, m, a, Ga, Gb, I, i, mi, BA,BM, ei, ab, ba, b, BB, fb, bf, fe, ef, mb, am;
   int Gam, Gmb, h;
-  psio_tocprint(PSIF_CC_HBAR);
+  //psio_tocprint(PSIF_CC_HBAR);
 
   /***** Term I *****/
   if(params.print == 2) outfile->Printf("F<eI|aB> -> WaBeI ... ");
@@ -379,7 +379,7 @@ void NEW_WaBeI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
   global_dpd_->contract244(&Fme, &T2, &W, 0, 0, 0, -1, 1);
   global_dpd_->file2_close(&Fme);
-  global_dpd_->buf4_print(&W,"outfile",1);
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&T2);
   if(params.print == 2) outfile->Printf("done\n");
@@ -416,7 +416,7 @@ void NEW_WaBeI_UHF(void)
       global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.aoccpi[Gi],W.params->coltot[Gei]);
     }
   }
-  global_dpd_->buf4_print(&W,"outfile",1);
+  //global_dpd_->buf4_print(&W,"outfile",1);
   global_dpd_->buf4_close(&W);
   global_dpd_->file2_mat_close(&T1);
   global_dpd_->file2_close(&T1);
