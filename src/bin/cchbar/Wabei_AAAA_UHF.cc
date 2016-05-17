@@ -350,7 +350,6 @@ void NEW_WABEI_UHF(void)
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 0, 7, 2, 7, 0, "tIJAB");
   global_dpd_->file2_init(&FME, PSIF_CC_OEI, 0, 0, 1, "FME");
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 21, 7, 21, 7, 0, "WEIAB");
-  /* global_dpd_->contract244(&FME,&T2,&W, 0, 0, 0,-1.0,1.0); */
   global_dpd_->file2_mat_init(&FME);
   global_dpd_->file2_mat_rd(&FME);
   for(Gei=0; Gei < moinfo.nirreps; Gei++) {
@@ -440,7 +439,7 @@ void NEW_WABEI_UHF(void)
    *      3. Tau_IJAB (MN,AB) is read from disk.
    *      5. Read W_ABEI (EI, A>B-) into buffer W.
    *      4. Loop over EI(row index) of W_EIAB target:
-   * --AMJ 1/16
+   * --AMJ January 2016
    */
   global_dpd_->buf4_init(&Z, PSIF_CC_HBAR, 0, 2, 21, 2,21, 0, "WMNIE (M>N,EI)");
   global_dpd_->buf4_sort(&Z, PSIF_CC_HBAR, rspq, 21, 2, "WMNIE (EI,M>N)");
@@ -569,6 +568,7 @@ void NEW_WABEI_UHF(void)
    * 2.   Z(ME,IB) --sort--> Z(EI,MB)
    * 3. - t_M^A( <MB||EI> + Z(EI,MB) ) --> W'(EI,AB)
    * 4. WABEI <-- W'(EI,AB)- W'(EI,AB)
+   * --AJ January 2016
    */
   if(params.print & 2 ) outfile->Printf("\t\tT1*(C+D*T2)-->WEIAB");
   /** Z(EI,BM) <-- -<IE||BM> **/
@@ -627,7 +627,14 @@ void NEW_WABEI_UHF(void)
 
 /*
 **
-** AMJ 1/2016
+** AMJ January 2016
+**
+** build_Z1_AAAA()
+** computes Z1(IA,MF) intermediate necessary for the efficient evaluation of
+** contractions with OVVV (F-type ) integrals for their contributions to the
+** all alpha spin 3 virtual index H-bar intermediate, this is a separate function
+** for organizational purposes and is declared and defined only in this file. It should
+** have a use anywhere else
 */
 void build_Z1_AAAA(void)
 {

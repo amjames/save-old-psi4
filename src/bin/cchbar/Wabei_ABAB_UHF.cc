@@ -350,36 +350,8 @@ void NEW_WAbEi_UHF(void)
   if(params.print == 2) outfile->Printf("\t-F_ME t_Mi^Ab -> WAbEi ... ");
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 22, 28, 22, 28, 0, "tIjAb");
   global_dpd_->file2_init(&FME, PSIF_CC_OEI, 0, 0, 1, "FME");
-// global_dpd_->file2_mat_init(&FME);
   global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 26, 28, 26, 28, 0, "WEiAb");
   global_dpd_->contract244(&FME, &T2, &W, 0, 0, 0, -1, 1);
-//  for(Gei=0; Gei < moinfo.nirreps; Gei++) {
-//    Gmi = Gab = Gei;
-//    global_dpd_->buf4_mat_irrep_init(&T2,Gmi);
-//    global_dpd_->buf4_mat_irrep_rd(&T2,Gmi);
-//    row=0;
-//    for(Ge=0; Ge<moinfo.nirreps; Ge++){
-//      Gm= Ge;
-//      Gi= Gm ^ Gmi;
-//      W.matrix[Gei] = global_dpd_->dpd_block_matrix(moinfo.boccpi[Gi],W.params->coltot[Gei]);
-//      nrows = moinfo.aoccpi[Gm];
-//      ncols = moinfo.boccpi[Gi] * W.params->coltot[Gei];
-//      if(nrows && ncols){
-//        for(EE=0; EE< moinfo.avirtpi[Ge]; EE++){
-//          e = moinfo.avir_off[Ge] + EE;
-//          global_dpd_->buf4_mat_irrep_rd_block(&W, Gei, W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-//          C_DGEMV('t',nrows,ncols, -1.0,&T2.matrix[Gmi][row][0],ncols,
-//              &FME.matrix[Gm][0][EE],moinfo.avirtpi[Ge], 1.0,W.matrix[Gei][0],1);
-//          global_dpd_->buf4_mat_irrep_wrt_block(&W,Gei,W.row_offset[Gei][e],moinfo.boccpi[Gi]);
-//        }
-//      }
-//      row+= moinfo.aoccpi[Gm]* moinfo.boccpi[Gi];
-//      global_dpd_->free_dpd_block(W.matrix[Gei],moinfo.boccpi[Gi],W.params->coltot[Gei]);
-//    }
-//    global_dpd_->buf4_mat_irrep_close(&T2,Gmi);
-//
-//  }
-//  global_dpd_->file2_mat_close(&FME);
   global_dpd_->file2_close(&FME);
   global_dpd_->buf4_close(&W);
   global_dpd_->buf4_close(&T2);
@@ -702,7 +674,15 @@ void build_Z1A_ABAB(){
   global_dpd_->file2_close(&TMA);
   global_dpd_->buf4_close(&Z);
 }
-
+/*
+ * AMJ January 2016
+** build_Z1_ABAB()
+** computes Z1(ib,mf) intermediate necessary for the efficient evaluation of
+** contractions with OvVv (F-type ) integrals for their contributions to the
+** all alpha-beta-alpha-beta spin 3 virtual index H-bar intermediate, this is a separate function
+** for organizational purposes and is declared and defined only in this file. It should
+** have a use anywhere else
+*/
 void build_Z1B_ABAB(){
   dpdfile2 T1;
   dpdbuf4 Z, T2;

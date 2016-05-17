@@ -607,6 +607,18 @@ void NEW_Wabei_UHF(void)
 
   timer_off("UHF_Wabei(NEW)");
 }
+
+/*
+**
+** AMJ January 2016
+**
+** build_Z1_BBBB()
+** computes Z1(ia,mf) intermediate necessary for the efficient evaluation of
+** contractions with ovvv (F-type ) integrals for their contributions to the
+** all beta spin 3 virtual index H-bar intermediate, this is a separate function
+** for organizational purposes and is declared and defined only in this file. It should
+** have a use anywhere else
+*/
 void build_Z1_BBBB(void)
 {
   dpdbuf4 T2, Z1, Fint;
