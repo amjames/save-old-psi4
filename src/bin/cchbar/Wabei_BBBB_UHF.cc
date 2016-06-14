@@ -69,7 +69,7 @@ void Wabei_UHF(void)
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C;
 
   /**** Term I ****/
-
+  timer_on("UHF_Wabei(old)");
   /** W(ei,ab) <--- <ei||ab> **/
   global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 31, 17, 31, 15, 1, "F <ai|bc>");
   global_dpd_->buf4_copy(&F, PSIF_CC_HBAR, "Weiab");
@@ -311,6 +311,7 @@ void Wabei_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 17, 31, 17, 31, 0, "W'(ab,ei)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 31, 17, "Weiab", 1);
   global_dpd_->buf4_close(&W);
+  timer_on("UHF_Wabei(old)");
 }
 
 void NEW_Wabei_UHF(void)

@@ -40,20 +40,6 @@
 #include "globals.h"
 
 namespace psi { namespace cchbar {
-void debug_check(void);
-void debug_check(void)
-{
-  dpdbuf4 W;
-  global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
-  global_dpd_->buf4_copy(&W, PSIF_CC_TMP0, "WeIaB-check");
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 25, 29, 25, 0, "W'(aB,eI)");
-  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_TMP0, rspq, 25, 29, "WeIaB-check", 1);
-  global_dpd_->buf4_close(&W);
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 25, 29, 25, 29, 0, "WeIaB-check");
-  global_dpd_->buf4_print(&W,"outfile",1 );
-  global_dpd_->buf4_close(&W);
-}
 
 /* WaBeI_UHF(): Computes all contributions to the aBeI spin case of
 ** the Wabei HBAR matrix elements.  The final product is stored in
@@ -76,9 +62,9 @@ void debug_check(void)
 ** TDC, June 2002
 */
 void build_Z1A_BABA();
-void build_Z1B_BABA();
 void WaBeI_UHF(void)
 {
+  timer_on("UHF_WaBeI(OLD)");
   dpdfile2 Fme, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C;
   psio_tocprint(PSIF_CC_HBAR);
@@ -248,10 +234,6 @@ void WaBeI_UHF(void)
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0, "Z(ae,IB)");
   global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_HBAR, qrps, 25, 29, "WeIaB", 1);
   global_dpd_->buf4_close(&Z);
-  //remove
-  debug_check();
-  //
-
 
   /**** Terms VIII and IX ****/
 
@@ -336,6 +318,7 @@ void WaBeI_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 25, 29, 25, 0, "W'(aB,eI)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 25, 29, "WeIaB", 1);
   global_dpd_->buf4_close(&W);
+  timer_off("UHF_WaBeI(OLD)");
 
 }
 void NEW_WaBeI_UHF(void)
