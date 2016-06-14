@@ -311,7 +311,7 @@ void Wabei_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 17, 31, 17, 31, 0, "W'(ab,ei)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 31, 17, "Weiab", 1);
   global_dpd_->buf4_close(&W);
-  timer_on("UHF_Wabei(old)");
+  timer_off("UHF_Wabei(old)");
 }
 
 void NEW_Wabei_UHF(void)
