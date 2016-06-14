@@ -467,13 +467,12 @@ void NEW_WaBeI_UHF(void)
    * WAbEi <-- (T2+T1*T1) *F
    *
    * Z1a(Ia,mF) = t(I,F)t(m,a) - T(ma,IF)
-   * <mB|eF>(Be,mF)Z1a(Ia,mF) = W1(Be,Ia)           [Contract 444]
-   * Z(aM,eI)<--  -<aM|eF> t_I^F                    [Contract 424]
-   * W(eI,aB)<--  Z(aM,eI) t_M^B                    [Contract 424]
-   * W(ae,IB)<-- <am||ef>(ae,mf)T2(IB,mf)           [Contract 444]
-   * W(ae,IB)<-- <aM|eF>(ae,MF) t_IM^BF(MF,IB)      [Contract 444]
-   * W2(ae,IB) sort axpy(qrps) WaBei (eI,aB)
-   * W1(Be,Ia) sort axpy(qrsp) WaBeI (eI,aB)
+   * <mB|eF>(Be,mF)Z1a(Ia,mF) = W1(Be,Ia)            [Contract 444]
+   * Z(aM,eI)<--  -<aM|eF> t_I^F                     [Contract 424]
+   * W(eI,aB)<--  Z(aM,eI) t_M^B                     [Contract 424]
+   * W'(ae,IB)<-- <am||ef>(ae,mf)T2(IB,mf)           [Contract 444]
+   * W'(ae,IB)<-- <aM|eF>(ae,MF) t_IM^BF(MF,IB)      [Contract 444]
+   * Z(Be,Ia) sort axpy(qrsp) WaBeI (eI,aB)
    *
    */
   if(params.print & 2) outfile->Printf("\t\tWaBeI <-- (T2+T1*T1) * F ...");
@@ -501,7 +500,7 @@ void NEW_WaBeI_UHF(void)
     }
     if(core_total > dpd_memfree()) incore = 0;
     if(!incore && (params.print == 1)){
-       outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
+       outfile->Printf("\n Wabei_UHF_BABA() Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
        outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree());
        exit(PSI_RETURN_FAILURE);
     }
@@ -512,11 +511,11 @@ void NEW_WaBeI_UHF(void)
     outfile->Printf("\n /** Z1a = -t_I^F t_m^a - t_mI^aF **/\n " );
     build_Z1A_BABA();
 
-    /** W1(Be,Ia)<--  <mB|eF>Z1a(Ia,mF) **/
+    /** Z(Be,Ia)<--  <mB|eF>Z1a(Ia,mF) **/
     outfile->Printf(" /** W1(Be,Ia)<--  <mB|eF>Z1a(Ia,mF) **/\n ");
     global_dpd_->buf4_init(&F,PSIF_CC_FINTS, 0, 28, 27, 28, 27, 0, "F <iA|bC> (Ab,iC)");
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 24, 27, 24 ,27, 0, "Z1a(Ia,mF)");
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 24, 28, 24, 0, "W1(Be,Ia)");
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 24, 28, 24, 0, "Z(Be,Ia)");
     global_dpd_->contract444(&F, &Z, &W, 0, 0, 1, 0);
     global_dpd_->buf4_close(&W);
     global_dpd_->buf4_close(&Z);
@@ -525,7 +524,7 @@ void NEW_WaBeI_UHF(void)
     /** Z(aM,eI)<--  -<aM|eF> t_I^F) **/
     outfile->Printf(" /** W2(ae,IB)<-- <aM|eF>Z1b(IB,MF) **/\n ");
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 25, 29, 25, 29, 0, "F <aI|bC>");
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 25,25,25,25, 0, "Z(aM,eI)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 25,25,25,25, 0, "Z'(aM,eI)");
     global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0,0,1, "tIA");
     global_dpd_->contract424(&F, &T1, &Z, 3, 1, 0, -1, 0);
     global_dpd_->buf4_close(&F);
@@ -533,7 +532,7 @@ void NEW_WaBeI_UHF(void)
     global_dpd_->file2_close(&T1);
 
     /** W(eI,aB)<-- Z(aM,eI) t_M^B **/
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 25, 25, 25, 25, 0, "Z(aM,eI)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 25, 25, 25, 25, 0, "Z'(aM,eI)");
     global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 0, 1, "tIA");
     global_dpd_->buf4_init(&W, PSIF_CC_HBAR, 0, 25, 29, 25, 29, 0, "WeIaB");
     global_dpd_->contract424(&Z, &T1, &W, 1, 0, 0, 1, 1);
@@ -541,19 +540,19 @@ void NEW_WaBeI_UHF(void)
     global_dpd_->buf4_close(&Z);
     global_dpd_->file2_close(&T1);
 
-    /** W2(IB,ae)<-- t_Im^Bf<am||ef> **/
+    /** W'(ae,IB)<-- t_Im^Bf<am||ef> **/
     outfile->Printf(" /** W2(ae,IB)<--t_Im^Bf<am||ef> **/\n ");
     global_dpd_->buf4_init(
       &F, PSIF_CC_FINTS, 0, 15, 30, 15, 30, 0, "F <ai||bc> (ab,ic)");
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0,  "tIAjb");
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 15, 20, 15, 20, 0, "W2(ae,IB)");
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0,  0, 15, 20, 15, 20, 0, "W'(ae,IB)");
     global_dpd_->contract444(&F, &T, &Z, 0, 0, 1, 0);
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&T);
     global_dpd_->buf4_close(&Z);
 
-    /** W2(IB,ae) <-- <aM|eF>t_IM^BF **/
-    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0, "W2(ae,IB)");
+    /** W'(IB,ae) <-- <aM|eF>t_IM^BF **/
+    global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0, "W'(ae,IB)");
     global_dpd_->buf4_init(
       &F, PSIF_CC_FINTS, 0, 15, 20, 15, 20,0, "F <aI|bC> (ab,IC)");
     global_dpd_->buf4_init(&T, PSIF_CC_TAMPS, 0, 20,20,20,20,0, "tIAJB");
@@ -562,12 +561,9 @@ void NEW_WaBeI_UHF(void)
     global_dpd_->buf4_close(&T);
     global_dpd_->buf4_close(&Z);
 
-    /** Add W2 and W1 to target **/
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 24, 28, 24, 0, "W1(Be,Ia)");
+    /** Add Z(Be,Ia) to target WaBeI **/
+    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 24, 28, 24, 0, "Z(Be,Ia)");
     global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrsp, 25, 29, "WeIaB",1 );
-    global_dpd_->buf4_close(&W);
-    global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0,"W2(ae,IB)");
-    global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrps, 25, 29, "WeIaB",1 );
     global_dpd_->buf4_close(&W);
   }else{
    // Once I get this working correctly I will worry about the low-disk case
@@ -584,17 +580,17 @@ void NEW_WaBeI_UHF(void)
                 + t_M^B {-<Ma|Ie> + t_In^Fa <Mn|Fe> }
       Evaluate in three steps:
          (1) Z_mBeI =  <mB|eI> + t_In^Bf <mn||ef> + tIN^BF <mN|eF>
-         [stored (mB,eI)]
+            stored (me,IB)
          (2) Z_MaeI = -<Ma|Ie> + t_In^Fa <Mn|Fe>
             [stored (aM,eI)]
          (3) WaBeI <-- - t_m^a Z_mBeI + t_M^B Z_MaeI
-      Store targets in     W'(aB,eI) and  W(eI,aB)
+      Store targets in     W'(ae,IB) and  W(eI,aB)
   **/
 
   /** Z(mB,eI) <-- <mB|eI> **/
   global_dpd_->buf4_init(
     &D, PSIF_CC_DINTS, 0, 27, 25, 27, 25, 0, "D <iJ|aB> (iB,aJ)");
-  global_dpd_->buf4_copy(&D, PSIF_CC_TMP0, "Z(mB,eI)");
+  global_dpd_->buf4_sort(&D, PSIF_CC_TMP0, prsq, 30,20, "Z(me,IB)");
   global_dpd_->buf4_close(&D);
 
   /** <mn||ef> t_In^Bf --> Z(me,IB) **/
@@ -603,7 +599,7 @@ void NEW_WaBeI_UHF(void)
     &D, PSIF_CC_DINTS, 0, 30, 30, 30, 30, 0, "D <ij||ab> (ia,jb)");
   global_dpd_->buf4_init(
     &T2, PSIF_CC_TAMPS, 0, 20, 30, 20, 30, 0, "tIAjb");
-  global_dpd_->contract444(&D, &T2, &Z, 0, 0, 1, 0);
+  global_dpd_->contract444(&D, &T2, &Z, 0, 0, 1, 1);
   global_dpd_->buf4_close(&T2);
   global_dpd_->buf4_close(&D);
   global_dpd_->buf4_close(&Z);
@@ -618,16 +614,11 @@ void NEW_WaBeI_UHF(void)
   global_dpd_->buf4_close(&D);
   global_dpd_->buf4_close(&Z);
 
-  /** Z(me,IB) --> Z(mB,eI) **/
+  /** W'(ae,IB) <-- - t_m^a Z(me,IB) **/
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0, "W'(ae,IB)");
   global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 30, 20, 30, 20, 0, "Z(me,IB)");
-  global_dpd_->buf4_sort_axpy(&Z, PSIF_CC_TMP0, psqr, 27, 25, "Z(mB,eI)", 1);
-  global_dpd_->buf4_close(&Z);
-
-  /** W'(aB,eI) <-- - t_m^a Z(mB,eI) **/
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 25, 29, 25, 0, "W'(aB,eI)");
-  global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 27, 25, 27, 25, 0, "Z(mB,eI)");
   global_dpd_->file2_init(&T1, PSIF_CC_OEI, 0, 2, 3, "tia");
-  global_dpd_->contract244(&T1, &Z, &W, 0, 0, 0, -1, 0);
+  global_dpd_->contract244(&T1, &Z, &W, 0, 0, 0, -1, 1);
   global_dpd_->file2_close(&T1);
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_close(&W);
@@ -665,9 +656,9 @@ void NEW_WaBeI_UHF(void)
   global_dpd_->buf4_close(&Z);
   global_dpd_->buf4_close(&W);
 
-  /**** Combine accumulated W'(aB,eI) and W(eI,aB) terms into WeIaB ****/
-  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 29, 25, 29, 25, 0, "W'(aB,eI)");
-  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 25, 29, "WeIaB", 1);
+  /**** Combine accumulated W'(ae,IB) and W(eI,aB) terms into WeIaB ****/
+  global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 15, 20, 15, 20, 0,"W'(ae,IB)");
+  global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, qrps, 25, 29, "WeIaB",1 );
   global_dpd_->buf4_close(&W);
 
   timer_off("UHF_WaBeI(NEW)");
