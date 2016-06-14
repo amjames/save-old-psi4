@@ -66,6 +66,7 @@ void build_Z1B_ABAB();
 
 void WAbEi_UHF(void)
 {
+  timer_on("UHF_WAbEi(OLD)");
   dpdfile2 Fme, T1;
   dpdbuf4 F, W, T2, B, Z, Z1, Z2, D, T, E, C;
 
@@ -321,6 +322,7 @@ void WAbEi_UHF(void)
   global_dpd_->buf4_init(&W, PSIF_CC_TMP0, 0, 28, 26, 28, 26, 0, "W'(Ab,Ei)");
   global_dpd_->buf4_sort_axpy(&W, PSIF_CC_HBAR, rspq, 26, 28, "WEiAb", 1);
   global_dpd_->buf4_close(&W);
+  timer_off("UHF_WAbEi(OLD)");
 }
 
 void NEW_WAbEi_UHF(void)
@@ -345,7 +347,6 @@ void NEW_WAbEi_UHF(void)
   if(params.print == 2) outfile->Printf("done\n");
 
   /**** Term II ****/
-  //This is wrong
   /** W(Ei,Ab) <--- - F_ME t_Mi^Ab **/
   if(params.print == 2) outfile->Printf("\t-F_ME t_Mi^Ab -> WAbEi ... ");
   global_dpd_->buf4_init(&T2, PSIF_CC_TAMPS, 0, 22, 28, 22, 28, 0, "tIjAb");
@@ -457,7 +458,9 @@ void NEW_WAbEi_UHF(void)
    */
   if(!params.wabei_lowdisk){
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 24, 28, 24, 28, 0 , "F <Ia|Bc>");
+    //Move to some setup function
     global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, qrps, 29,24, "F <Ia|Bc> (aB,Ic)");
+    //
     incore =1;
     core_total=0;
     for(h=0; h<moinfo.nirreps; h++) {
@@ -479,7 +482,7 @@ void NEW_WAbEi_UHF(void)
     }
     if(core_total > dpd_memfree()) incore = 0;
     if(!incore && (params.print == 1)){
-       outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
+       outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithm for(T2+T1*T1)*F -> Wabei.\n");
        outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree());
        exit(PSI_RETURN_FAILURE);
     }
