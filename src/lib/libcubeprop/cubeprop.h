@@ -103,6 +103,10 @@ public:
     void compute_LOL(boost::shared_ptr<Matrix> D, const std::string& key);
     /// Compute an ELF grid task (key.cube)
     void compute_ELF(boost::shared_ptr<Matrix> D, const std::string& key);
+
+    /// Compute effectively unpaired electron density (EUD) grid task (key.cube)
+    void compute_effectively_unpaired_density(boost::shared_ptr<Matrix> N, boost::shared_ptr<Vector> n_u, const std::string& key);
+    void compute_effectively_unpaired_density(boost::shared_ptr<Matrix> N, std::vector<double> n_u, const std::string& key);
 };
 
 }
