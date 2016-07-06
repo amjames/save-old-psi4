@@ -501,11 +501,11 @@ void NEW_Wabei_UHF(void)
        core_total += 2*rowtot*coltot;
     }
     if(core_total > dpd_memfree()) incore = 0;
-    if(!incore && (params.print == 1)){
-       outfile->Printf("\n Wabei_UHF(BBBB) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
-       outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree());
-       exit(PSI_RETURN_FAILURE);
-    }
+    /* if(!incore && (params.print == 1)){ */
+    /*    outfile->Printf("\n Wabei_UHF(BBBB) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n"); */
+    /*    outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree()); */
+    /*    exit(PSI_RETURN_FAILURE); */
+    /* } */
     incore =1;
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 30, 30, 30, 30, 0, "Z1(ia,mf)");
