@@ -514,12 +514,12 @@ void NEW_WABEI_UHF(void)
        if(core_total > (core_total + 2*rowtot*coltot)) incore =0;
        core_total += 2*rowtot*coltot;
     }
-    if(core_total > dpd_memfree()) incore = 0;
-    if(!incore && (params.print == 1)){
-       outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n");
-       outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree());
-       exit(PSI_RETURN_FAILURE);
-    }
+    //if(core_total > dpd_memfree()) incore = 0;
+    /* if(!incore && (params.print == 1)){ */
+    /*    outfile->Printf("\n Wabei_UHF(AAAA) Error: no out-of-core algorithim for(T2+T1*T1)*F -> Wabei.\n"); */
+    /*    outfile->Printf("core required: %d, DPD_MEMFREE: %d",core_total, dpd_memfree()); */
+    /*    exit(PSI_RETURN_FAILURE); */
+    /* } */
     incore =1;
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_init(&Z, PSIF_CC_TMP0, 0, 20, 20, 20, 20, 0, "Z1(IA,MF)");
@@ -531,6 +531,7 @@ void NEW_WABEI_UHF(void)
     global_dpd_->buf4_close(&F);
     global_dpd_->buf4_close(&Z);
 
+    //Move to sorting code!!
     global_dpd_->buf4_init(&F, PSIF_CC_FINTS, 0, 26, 28, 26, 28, 0, "F <Ai|Bc>");
     global_dpd_->buf4_sort(&F, PSIF_CC_FINTS, prqs, 5 ,30,"F <Ai|Bc> (AB,ic)");
     global_dpd_->buf4_close(&F);                                  //tIAmf
