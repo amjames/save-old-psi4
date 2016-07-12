@@ -205,13 +205,17 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   directory. -*/
   options.add_str_i("CUBEPROP_FILEPATH", ".");
 
+  options.add("CUBEPROP_EUD_NUMBER_FUNCTION", new ArrayType());
+
   /*- Properties to compute. Valid tasks include:
       ``DENSITY`` - Da, Db, Dt, Ds
       ``ESP`` - Dt, ESP
       ``ORBITALS`` - Psi_a_N, Psi_b_N
+      ``NATURAL_ORBITALS`` - NO_a_N, NO_b_N
       ``BASIS_FUNCTIONS`` - Phi_N
       ``LOL`` - LOLa, LOLb
       ``ELF`` - ELFa, ELFb
+      ``EUD`` - EUD
   -*/
   options.add("CUBEPROP_TASKS", new ArrayType());
   /*- List of orbital indices for which cube files are generated (1-based,
