@@ -25,12 +25,13 @@
  * @END LICENSE
  */
 
-#ifndef _psi_src_lib_libcubeprop_cubeprop_h_
-#define _psi_src_lib_libcubeprop_cubeprop_h_
+#ifndef _psi_src_lib_libcubeprop_dcubeprop_h_
+#define _psi_src_lib_libcubeprop_dcubeprop_h_
 
 #include <map>
 
 #include <libmints/typedefs.h>
+#include <libmints/oeprop.h>
 #include <libmints/wavefunction.h>
 
 namespace psi {
@@ -49,64 +50,49 @@ protected:
   void print_header();
   // initialize important variables
   void common_init();
-  // Global options object
-  Options& options_;
 
   // Grid-based property computer
   boost::shared_ptr<CubicScalarGrid> grid_;
 
-        // => Natural orbital info <= //
-  // (Note: SO basis stored to keep the same conventions as base class.) //
-  // alpha Natural Orbitals
-  SharedMatrix NOa_so_;
-  // alpha occupation numbers
-  SharedVector Oca_;
-  // beta Natural Orbitals
-  SharedMatrix NOb_so_;
-  // beta occupation numbers
-  SharedVector Ocb_;
 
-  // print requested tasks, and other input info //
-  void print_header();
 
+  // ==>helpers that have no purpose except to prevent repeating code <==//
+
+  // Compute Dt_so and transform to ao basis for plotting
+  SharedMatrix Dt_ao();
+
+  // Transform some kind of density from mo to so basis
+  SharedMatrix Gen_D_mo2so(SharedMatrix Dmo);
+  // Transform some kind of density from so to ao basis
+  SharedMatrix Gen_D_so2ao(SharedMatrix Dso);
+  // Transform some kind of density from mo to ao basis
+  // This just chains the two above together
+  SharedMatrix Gen_D_mo2ao(SharedMatrix Dmo);
 
 public:
     // => Constructors <= //
 
-    /// Construct a CubeProperties object from a Wavefunction (possibly with symmetry in wfn)
-    CubeProperties(SharedWavefunction wfn);
-    CubeProperties(SharedWavefunction wfn, SharedMatrix OPDM);
-    CubeProperties(SharedWavefunction wfn, SharedMatrix OPDM_a, SharedMatrix OPDM_b);
+    /// Construct a DensityCubeProperties object from a Wavefunction (possibly with symmetry in wfn)
+    DensityCubeProperties(SharedWavefunction wfn);
 
     /// Common Destructor
-    virtual ~CubeProperties();
+    virtual ~DensityCubeProperties();
 
     // => High-Level Property Computers <= //
 
     /// Compute all relevant properties from options object specifications
-    void compute_properties();
+    void compute();
 
     // => Low-Level Property Computers (Do not use unless you are an advanced client code) <= //
 
-    /// Obligatory title info
-    void print_header();
-    /// Compute a density grid task (key.cube)
-    void compute_density(boost::shared_ptr<Matrix> D, const std::string& key);
-    /// Compute an ESP grid task (Dt.cube and ESP.cube)
-    void compute_esp(boost::shared_ptr<Matrix> Dt, const std::vector<double>& nuc_weights = std::vector<double>());
-    /// Compute an orbital task (key_N.cube, for 0-based indices of C)
-    void compute_orbitals(boost::shared_ptr<Matrix> C, const std::vector<int>& indices, const std::vector<std::string>& labels, const std::string& key);
-    /// Compute a basis function task (key_N.cube, for 0-based indices of basisset_)
-    void compute_basis_functions(const std::vector<int>& indices, const std::string& key);
-    /// Compute a LOL grid task (key.cube)
-    void compute_LOL(boost::shared_ptr<Matrix> D, const std::string& key);
-    /// Compute an ELF grid task (key.cube)
-    void compute_ELF(boost::shared_ptr<Matrix> D, const std::string& key);
-
-    /// Compute effectively unpaired electron density (EUD) grid task (key.cube)
-    void compute_EUD(boost::shared_ptr<Matrix> Na, boost::shared_ptr<Matrix> Nb, boost::shared_ptr<Vector> n);
-    void compute_EUD_direct(boost::shared_ptr<Matrix> Na, boost::shared_ptr<Matrix> Nb, boost::shared_ptr<Vector> n);
-    void compute_natural_orbitals(boost::shared_ptr<Matrix> NO);
+    // Compute a density grid task (key.cube)
+    void compute_densities(const std::string key="D");
+    // Compute an ESP grid task (Dt.cube and ESP.cube)
+    //void compute_natural_orbitals(const std::vector<int>& indices, const std::vector<std::string>& labels, const std::string& key);
+    // Compute effectively unpaired electron density (EUD) grid task
+    //  type.cube, also prints number of effectively unpaired electrons to
+    //  output, do compute atomic contributions?
+    void compute_EUD(std::string type="U", bool atomic_contrib=false);
 
 };
 

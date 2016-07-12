@@ -27,6 +27,8 @@
 
 #include <boost/python.hpp>
 #include <libcubeprop/cubeprop.h>
+#include <libcubeprop/denscubeprop.h>
+#include <libmints/oeprop.h>
 #include <liboptions/liboptions.h>
 #include <libmints/wavefunction.h>
 
@@ -37,8 +39,9 @@ void export_cubeprop()
 {
     class_<CubeProperties, boost::shared_ptr<CubeProperties> >("CubeProperties", "docstring", no_init)
         .def(init<boost::shared_ptr<Wavefunction>>())
-        .def("compute_properties", &CubeProperties::compute_properties, "docstring")
-        .def("compute_eud", &CubeProperties::compute_EUD,"docstring")
-        .def("compute_eud_direct", &CubeProperties::compute_EUD_direct,"docstring")
-        .def("compute_natural_orbitals", &CubeProperties::compute_natural_orbitals, "docstring");
+        .def("compute_properties", &CubeProperties::compute_properties, "docstring");
+
+    class_<DensityCubeProperties,boost::shared_ptr<DensityCubeProperties> >("DensityCubeProperties","docstring",no_init)
+      .def(init<boost::shared_ptr<Wavefunction>>())
+      .def("compute", &DensityCubeProperties::compute,"docstring");
 }

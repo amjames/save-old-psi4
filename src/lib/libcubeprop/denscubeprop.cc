@@ -26,16 +26,20 @@
  */
 
 #include <boost/filesystem.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <boost/tuple/tuple_comparison.hpp>
+#include <utility>
 
+#include <libciomr/libciomr.h>
+#include <libqt/qt.h>
+#include <physconst.h>
+#include <libmints/mints.h>
 #include <psi4-dec.h>
-
 #include <libpsi4util/libpsi4util.h>
 #include <libmints/mints.h>
 
-#include <boost/tuple/tuple.hpp>
-#include <boost/tuple/tuple_comparison.hpp>
 
-#include "cubeprop.h"
+#include "denscubeprop.h"
 #include "csg.h"
 
 #ifdef _OPENMP
@@ -48,398 +52,198 @@ using namespace std;
 
 namespace psi {
 
-CubeProperties::CubeProperties(SharedWavefunction wfn) :
-    options_(Process::environment.options)
+DensityCubeProperties::DensityCubeProperties(SharedWavefunction wfn) :
+  Prop(wfn)
 {
-    basisset_ = wfn->basisset();
-    boost::shared_ptr<PetiteList> PL(new PetiteList(basisset_,wfn->integral()));
-    SharedMatrix SO2AO = PL->sotoao();
-    S_ = wfn->S();
-
-    Ca_ = wfn->Ca_subset("AO", "ALL");
-    Da_ = wfn->Da_subset("AO");
-
-    if (wfn->same_a_b_orbs()) {
-        Cb_ = Ca_;
-    } else {
-        Cb_ = wfn->Cb_subset("AO", "ALL");
-    }
-
-    if (wfn->same_a_b_dens()) {
-        Db_ = Da_;
-    } else {
-        Db_ = wfn->Db_subset("AO");
-    }
-
-    std::pair<SharedMatrix,SharedVector> alpha_NOpair =
-      compute_NOpair(SO2AO,wfn);
-    Na_ = alpha_NOpair.first;
-    NOONa_ = alpha_NOpair.second;
-
-    int nirrep = wfn->nirrep();
-    Dimension nmopi = wfn->nmopi();
-    // Gather orbital information
-    for (int h = 0; h < nirrep; h++) {
-        for (int i = 0; i < (int)nmopi[h]; i++) {
-            info_a_.push_back(boost::tuple<double,int,int>(wfn->epsilon_a()->get(h,i),i,h));
-        }
-    }
-    std::sort(info_a_.begin(), info_a_.end(), std::less<boost::tuple<double,int,int> >()); // Sort as in wfn
-    for (int h = 0; h < nirrep; h++) {
-        for (int i = 0; i < (int)nmopi[h]; i++) {
-            info_b_.push_back(boost::tuple<double,int,int>(wfn->epsilon_b()->get(h,i),i,h));
-        }
-    }
-    std::sort(info_b_.begin(), info_b_.end(), std::less<boost::tuple<double,int,int> >()); // Sort as in wfn
-
-    common_init();
+  common_init();
 }
-CubeProperties::~CubeProperties()
+DensityCubeProperties::~DensityCubeProperties()
 {
 }
-void CubeProperties::common_init()
+
+void DensityCubeProperties::common_init()
 {
-    grid_ = boost::shared_ptr<CubicScalarGrid>(new CubicScalarGrid(basisset_, options_));
-    grid_->set_filepath(options_.get_str("CUBEPROP_FILEPATH"));
+  Options &options = Process::environment.options;
+  print_ = options.get_int("PRINT");
+
+  for(size_t ind = 0; ind < options["CUBEPROP_TASKS"].size(); ind++){
+    std::string task_name = options["CUBEPROP_TASKS"][ind].to_string();
+    add(task_name);
+  }
+
+  boost::shared_ptr<Molecule> mol = basisset_->molecule();
+  grid_ = boost::shared_ptr<CubicScalarGrid>(new CubicScalarGrid(basisset_, options));
+  grid_->set_filepath(options.get_str("CUBEPROP_FILEPATH"));
+
 }
-void CubeProperties::print_header()
+
+void DensityCubeProperties::print_header()
 {
-    outfile->Printf( "  ==> One Electron Grid Properties (v2.0) <==\n\n");
+    outfile->Printf( "  ==> Density based plotting tool (v2.0) <==\n\n");
     grid_->print_header();
     outfile->Flush();
 }
-std::pair<SharedMatrix,SharedVector> CubeProperties::compute_NOpair(
-    boost::shared_ptr<Matrix>so2ao,boost::shared_ptr<Wavefunction> wfn){
-  // total density AO basis
-  //SharedMatrix Da = wfn->Da_subset("MO");
-  SharedMatrix Da = wfn->Da();
-  //SharedMatrix Db = wfn->Db_subset("MO");
-  SharedMatrix Db = wfn->Db();
-  //SharedMatrix X(new Matrix(Dt->rowspi(),Dt->colspi()));
-  SharedMatrix X = S_->clone();
-  outfile->Printf("S matrix");
-  S_->print_out();
 
-  //transform overlap to AO basis
-  //X->remove_symmetry(S_,so2ao);
-  //create sym orthogonalization matrix
-  outfile->Printf("S^{1/2}");
-  X->power(0.5);
-  X->print_out();
-  //Da->transform(X);
-  //Da->back_transform(X);
-  SharedMatrix Dt = Da->clone();
-  //Db->transform(X);
-  //Db->back_transform(X);
-  Dt->add(Db);
-  //Transform Dt(ao) to orthogonal ao basis
-  Dt->transform(X);
-  outfile->Printf("Dt 'orthogonalized' so basis\n");
-  Dt->print_out();
+SharedMatrix DensityCubeProperties::Gen_D_mo2so(SharedMatrix Dmo)
+{
+  std::string new_name(Dmo->name()+"->SO");
+    SharedMatrix Dso = SharedMatrix(new Matrix(new_name,
+          Cb_so_->nirrep(),Cb_so_->nrow(),Cb_so_->ncol()));
+  for(int h =0; h < Dmo->nirrep(); h++){
+    int nmo = Cb_so_->colspi()[h];
+    int nso = Cb_so_->rowspi()[h];
 
-  SharedVector vals(new Vector(Dt->rowspi()));
-  SharedMatrix N(new Matrix(Dt->rowspi(),Dt->colspi()));
-  SharedMatrix NO(new Matrix(Dt->rowspi(),Dt->colspi()));
-  Dt->diagonalize(N,vals,descending);
-  outfile->Printf("Dt eigenvectors\n");
-  X = S_->clone();
-  X->power(-0.5);
-  NO->gemm(false,false,1.0,X,N,0.0);
-  NO->print_out();
-  outfile->Printf("NOON \n");
-  vals->print_out();
-  std::pair<SharedMatrix,SharedVector> ret(NO,vals);
-  return ret;
+    if (!nmo || !nso) continue;
+    double** Dmop = Dmo->pointer(h);
+    double** Cp  = Cb_so_->pointer(h);
+    double** Dsop = Dso->pointer(h);
+    C_DGEMM('N','N',nso,nmo,nmo,1.0,Cp[0],nmo,Dmop[0],nmo,0.0,Dsop[0],nmo);
+  }
+  return Dso;
 
 }
-void CubeProperties::compute_properties()
+
+SharedMatrix DensityCubeProperties::Gen_D_so2ao(SharedMatrix Dso)
 {
-    print_header();
+  std::string new_name(Dso->name()+"->ao");
+  SharedMatrix Dao(new Matrix(new_name,
+      Cb_so_->nrow(),Cb_so_->ncol()));
 
-    std::string filepath = options_.get_str("CUBEPROP_FILEPATH");
-    std::stringstream ss;
-    ss << filepath << "/" << "geom.xyz";
+  int offset = 0;
+  for (int h = 0; h < Cb_so_->nirrep(); h++){
 
-    // Is filepath a valid directory?
-    boost::filesystem::path data_dir(filepath);
-    if(not boost::filesystem::is_directory(data_dir)){
-        printf("Filepath \"%s\" is not valid.  Please create this directory.\n",filepath.c_str());
-        outfile->Printf("Filepath \"%s\" is not valid.  Please create this directory.\n",filepath.c_str());
-        outfile->Flush();
-        exit(Failure);
-    }
+    int ncol = Cb_so_->ncol();
+    int nmo = Cb_so_->colspi()[h];
+    int nso = AO2USO_->colspi()[h];
+    int nao = AO2USO_->rowspi()[h];
 
-    basisset_->molecule()->save_xyz_file(ss.str());
+    if (!nmo || !nso || !nao)continue;
+    double** Dsop = Dso->pointer(h);
+    double** Up = AO2USO_->pointer(h);
+    double** Daop = Dao->pointer(h);
 
-    for (size_t ind = 0; ind < options_["CUBEPROP_TASKS"].size(); ind++) {
-        std::string task = options_["CUBEPROP_TASKS"][ind].to_string();
+    C_DGEMM(
+        'N','N',
+        nao,nmo,nso,
+        1.0,Up[0],nso,
+        Dsop[0],nmo,0.0,
+        &Daop[0][offset],ncol
+        );
+    offset += nmo;
+  }
+  return Dao;
 
-        if (task == "DENSITY") {
-            boost::shared_ptr<Matrix> Dt(Da_->clone());
-            boost::shared_ptr<Matrix> Ds(Da_->clone());
-            Dt->copy(Da_);
-            Ds->copy(Da_);
-            Dt->add(Db_);
-            Ds->subtract(Db_);
-            compute_density(Dt, "Dt");
-            compute_density(Ds, "Ds");
-            compute_density(Da_, "Da");
-            compute_density(Db_, "Db");
-       } else if (task == "EUD") {
-          boost::shared_ptr<Vector> Nu(NOONa_->clone());
-          boost::shared_ptr<Vector> Nd(NOONa_->clone());
-          boost::shared_ptr<Vector> Ns(NOONa_->clone());
-          Nu->set_name("Nu = min(1,n)");
-          Ns->set_name("Ns = n^2(2-n)^2");
-          Nd->set_name("Nd = 2*n - n^2");
-          Nu->zero();
-          Nd->zero();
-          Ns->zero();
-          double sumNs= 0.00;
-          double sumNu= 0.00;
-          double sumNd= 0.00;
-          for(int h=0; h < NOONa_->nirrep(); ++h){
-            for(int i =0; i <NOONa_->dim(h); ++i){
-              double ni = NOONa_->get(h,i);
-              double ns = (ni*ni)*((2-ni)*(2-ni));
-              sumNs+= ns;
-              double nu = 1-std::abs(1-ni);
-              sumNu +=nu;
-              double nd = 2*ni-(ni*ni);
-              sumNd += nd;
-              Nu->set(h,i,nu);
-              Ns->set(h,i,ns);
-              Nd->set(h,i,nd);
-            }
-          }
-          outfile->Printf("         number(s) of effectively unpaired electrons\n");
-          outfile->Printf("=========================================================\n");
-          Nu->print_out();
-          Ns->print_out();
-          Nd->print_out();
-          SharedMatrix U = Da_->clone();
-          SharedMatrix D = Da_->clone();
-          SharedMatrix S = Da_->clone();
-          U->zero();
-          U->set_diagonal(Nu);
-          U->back_transform(Na_);
-          D->zero();
-          D->set_diagonal(Nd);
-          D->back_transform(Na_);
-          S->zero();
-          S->set_diagonal(Ns);
-          S->back_transform(Na_);
-          compute_density(U,"updens_U");
-          compute_density(D,"updens_D");
-          compute_density(S,"updens_S");
-        } else if (task == "ESP") {
-            boost::shared_ptr<Matrix> Dt(Da_->clone());
-            Dt->copy(Da_);
-            Dt->add(Db_);
-            compute_esp(Dt);
-        } else if (task == "ORBITALS") {
-            std::vector<int> indsa0;
-            std::vector<int> indsb0;
 
-            if (options_["CUBEPROP_ORBITALS"].size() == 0) {
-                for (int ind = 0; ind < Ca_->colspi()[0]; ind++) {
-                    indsa0.push_back(ind);
-                }
-                for (int ind = 0; ind < Cb_->colspi()[0]; ind++) {
-                    indsb0.push_back(ind);
-                }
-            } else {
-                for (size_t ind = 0; ind < options_["CUBEPROP_ORBITALS"].size(); ind++) {
-                    int val = options_["CUBEPROP_ORBITALS"][ind].to_integer();
-                    if (val > 0) {
-                        indsa0.push_back(abs(val) - 1);
-                    } else {
-                        indsb0.push_back(abs(val) - 1);
-                    }
-                }
-            }
-            std::vector<string> labelsa;
-            std::vector<string> labelsb;
-            CharacterTable ct = basisset_->molecule()->point_group()->char_table();
-            for (size_t ind = 0; ind < indsa0.size(); ++ind){
-                int i = get<1>(info_a_[indsa0[ind]]);
-                int h = get<2>(info_a_[indsa0[ind]]);
-                labelsa.push_back(to_string(i + 1) + "-" + ct.gamma(h).symbol());
-            }
-            for (size_t ind = 0; ind < indsb0.size(); ++ind){
-                int i = get<1>(info_b_[indsb0[ind]]);
-                int h = get<2>(info_b_[indsb0[ind]]);
-                labelsb.push_back(to_string(i + 1) + "-" + ct.gamma(h).symbol());
-            }
-            if (indsa0.size()) compute_orbitals(Ca_, indsa0,labelsa, "Psi_a");
-            if (indsb0.size()) compute_orbitals(Cb_, indsb0,labelsb, "Psi_b");
-        //} else if (task == "NATURAL_ORBITALS"){
-            //std::vector<int> indsa0;
-            //std::vector<int> indsb0;
-
-            //if (options_["CUBEPROP_NATURAL_ORBITALS"].size() == 0) {
-            //    for (int ind = 0; ind < Na_->colspi()[0]; ind++) {
-            //        indsa0.push_back(ind);
-            //    }
-            //    for (int ind = 0; ind < Nb_->colspi()[0]; ind++) {
-            //        indsb0.push_back(ind);
-            //    }
-            //} else {
-            //    for (size_t ind = 0; ind < options_["CUBEPROP_NATURAL_ORBITALS"].size(); ind++) {
-            //        int val = options_["CUBEPROP_NATURAL_ORBITALS"][ind].to_integer();
-            //        if (val > 0) {
-            //            indsa0.push_back(abs(val) - 1);
-            //        } else {
-            //            indsb0.push_back(abs(val) - 1);
-            //        }
-            //    }
-            //}
-            //std::vector<string> labelsa;
-            //std::vector<string> labelsb;
-            //CharacterTable ct = basisset_->molecule()->point_group()->char_table();
-            //for (size_t ind = 0; ind < indsa0.size(); ++ind){
-            //    int i = get<1>(info_a_[indsa0[ind]]);
-            //    int h = get<2>(info_a_[indsa0[ind]]);
-            //    labelsa.push_back(to_string(i + 1) + "-" + ct.gamma(h).symbol());
-            //}
-            //for (size_t ind = 0; ind < indsb0.size(); ++ind){
-            //    int i = get<1>(info_b_[indsb0[ind]]);
-            //    int h = get<2>(info_b_[indsb0[ind]]);
-            //    labelsb.push_back(to_string(i + 1) + "-" + ct.gamma(h).symbol());
-            //}
-            //if (indsa0.size()) compute_orbitals(Na_, indsa0,labelsa, "NO_a");
-            //if (indsb0.size()) compute_orbitals(Nb_, indsb0,labelsb, "NO_b");
-
-        } else if (task == "BASIS_FUNCTIONS") {
-            std::vector<int> inds0;
-            if (options_["CUBEPROP_BASIS_FUNCTIONS"].size() == 0) {
-                for (int ind = 0; ind < basisset_->nbf(); ind++) {
-                    inds0.push_back(ind);
-                }
-            } else {
-                for (size_t ind = 0; ind < options_["CUBEPROP_BASIS_FUNCTIONS"].size(); ind++) {
-                    inds0.push_back(options_["CUBEPROP_BASIS_FUNCTIONS"][ind].to_integer() - 1);
-                }
-            }
-            compute_basis_functions(inds0, "Phi");
-        } else if (task == "LOL") {
-            compute_LOL(Da_, "LOLa");
-            compute_LOL(Db_, "LOLb");
-        } else if (task == "ELF") {
-            compute_ELF(Da_, "ELFa");
-            compute_ELF(Db_, "ELFb");
-        } else {
-            throw PSIEXCEPTION(task + "is an unrecognized PROPERTY_TASKS value");
-        }
-    }
-}
-void CubeProperties::compute_density(boost::shared_ptr<Matrix> D, const std::string& key)
-{
-    grid_->compute_density(D, key);
-}
-void CubeProperties::compute_esp(boost::shared_ptr<Matrix> Dt, const std::vector<double>& w)
-{
-    grid_->compute_density(Dt, "Dt");
-    grid_->compute_esp(Dt, w, "ESP");
-}
-void CubeProperties::compute_orbitals(boost::shared_ptr<Matrix> C, const std::vector<int>& indices, const std::vector<std::string>& labels, const std::string& key)
-{
-    grid_->compute_orbitals(C, indices, labels, key);
-}
-void CubeProperties::compute_basis_functions(const std::vector<int>& indices, const std::string& key)
-{
-    grid_->compute_basis_functions(indices, key);
-}
-void CubeProperties::compute_LOL(boost::shared_ptr<Matrix> D, const std::string& key)
-{
-    grid_->compute_LOL(D, key);
-}
-void CubeProperties::compute_ELF(boost::shared_ptr<Matrix> D, const std::string& key)
-{
-    grid_->compute_ELF(D, key);
 }
 
-void CubeProperties::compute_EUD(boost::shared_ptr<Matrix> Na,boost::shared_ptr<Matrix> Nb, boost::shared_ptr<Vector> n)
+SharedMatrix DensityCubeProperties::Gen_D_mo2ao(SharedMatrix Dmo)
 {
-  //boost::shared_ptr<IntegralFactory> integral(basisset_);
-  SharedMatrix Na_ao(new Matrix(Ca_->colspi(),Ca_->rowspi()));
-  SharedMatrix Nb_ao(new Matrix(Cb_->colspi(),Cb_->rowspi()));
-  //boost::shared_ptr<PetiteList> pt(basisset_,integral);
-  //SharedMatrix so2ao = pt->sotoao();
+  //first half mo->so
+  SharedMatrix Dso = Gen_D_mo2so(Dmo);
+  //then  so->ao
+  SharedMatrix Dao = Gen_D_so2ao(Dso);
+  std::string new_name (Dmo->name()+"->ao");
+  Dao->set_name(new_name);
+  return Dao;
+}
 
-  Na_ao->gemm(false,false,1.0,Ca_,Na,0.0);
-  Nb_ao->gemm(false,false,1.0,Cb_,Nb,0.0);
-  Nb->transform(Cb_);
-  Na->transform(Ca_);
-  SharedMatrix Nt(Na_ao->clone());
-  Nt->copy(Na_ao);
-  Nt->add(Nb_ao);
-  SharedMatrix EUD(Da_->clone());
+SharedMatrix DensityCubeProperties::Dt_ao()
+{
+  double* temp = new double[AO2USO_->max_ncol()*AO2USO_->max_nrow()];
+  SharedMatrix D = SharedMatrix(new Matrix("Dt (ao basis)", basisset_->nbf(),basisset_->nbf()));
+  SharedMatrix Dt = Dt_so();
+  int symm = Da_so_->symmetry();
+  for( int h = 0; h < AO2USO_->nirrep(); ++h ){
+    int nao = AO2USO_->rowspi()[0];
+    int nsol = AO2USO_->colspi()[h];
+    int nsor = AO2USO_->colspi()[h^symm];
+    if (!nsol || !nsor) continue;
+    double** Ulp = AO2USO_->pointer(h);
+    double** Urp = AO2USO_->pointer(h^symm);
+    double** DSOp = Dt->pointer(h^symm);
+    double** DAOp = D->pointer();
+    C_DGEMM('N','T',nsol,nao,nsor,1.0,DSOp[0],nsor,Urp[0],nsor,0.0,temp,nao);
+    C_DGEMM('N','N',nao,nao,nsol,1.0,Ulp[0],nsol,temp,nao,1.0,DAOp[0],nao);
+  }
+  delete[] temp;
+  return D;
+}
 
-  SharedVector nu(n->clone());
-  nu->zero();
-  if( options_["CUBEPROP_EUD_NUMBER_FUNCTION"].size() == 0){
-    for(int h =0; h < n->nirrep(); ++h){
-      for(int i =0; i< n->dim(h); ++i){
-        double nu_i;
-        double ni = n->get(h,i);
-        nu->set(h,i,(ni*ni)*((2-ni)*(2-ni)));
-      }
-    }
-    outfile->Printf("         number of effectively unpaired electrons\n");
-    outfile->Printf("=========================================================\n");
-    nu->print_out();
-    EUD->zero();
-    EUD->set_diagonal(nu);
-    EUD->transform(Nt);
-    outfile->Printf("       Density of effectively unpaired electrons\n");
-    outfile->Printf("=========================================================\n");
-    EUD->print_out();
-    grid_->compute_density(EUD,"EUD");
-  }else{
-    return;
+void DensityCubeProperties::compute_densities(std::string key)
+{
+  SharedMatrix Dt = Dt_ao();
+  std::string total = key+"_total";
+  grid_->compute_density(Dt,total);
+  if (!same_dens_){
+    std::string alpha = key+"_alpha";
+    SharedMatrix Da = Da_ao();
+    grid_->compute_density(Da,alpha);
+    std::string beta = key+"_beta";
+    SharedMatrix Db = Db_ao();
+    grid_->compute_density(Db,beta);
+    SharedMatrix Ds = Da->clone();
+    Ds->subtract(Db);
+    std::string spin = key+"_spin";
+    grid_->compute_density(Ds,spin);
+  }
+}
+
+void DensityCubeProperties::compute_EUD(std::string type, bool atomic_contrib)
+{
+  if (same_dens_)
+    throw PSIEXCEPTION("DENSCUBEPROP: a/b density is the same requesting EUD makes no sense");
+  if (type == "D-mat"){
+    std::string typekey("EUD_D-mat");
     /*
-    for (size_t f_ind = 0;
-      f_ind < options_["CUBEPROP_EUD_NUMBER_FUNCTION"].size();
-      ++f_ind
-      ){
-        for(int h =0; h < n->nirrep(); ++h){
-          for(int i =0; i< n->dim(h); ++i){
-          }
-        }
+     * Evaluate
+     * D(i,j) = 2(Da(i,j)+Db(i,j)) - sum_k[(Da(i,k)+Db(i,k))*(Db(k,j)+Db(k,j))]
+     */
+    SharedMatrix Dt = Da_mo();
+    SharedMatrix Dmo = Dt->clone();
+    Dmo->scale(2.0);
+    SharedMatrix Dt2 =Dt->clone();
+    Dt2->gemm(false,false,-1.0,Dt,Dt,0.0);
+    Dmo->add(Dt2);
+
+    // transform Dmo ->ao basis for plotting
+    SharedMatrix Dao = Gen_D_mo2ao(Dmo);
+    grid_->compute_density(Dao,typekey);
+  }
+  if(type == "D-NatOrb"){
+    std::string typekey("EUD_D-NatOrb");
+    std::pair<SharedMatrix, SharedVector> pair = Nt_mo();
+    SharedMatrix N_mo = pair.first;
+    SharedVector O = pair.second;
+    SharedVector f_d(O->clone());
+    outfile->Printf("        Number of effectively unpaired Electrons\n");
+    outfile->Printf("========================================================\n");
+    outfile->Printf(" index       No occ num         Nu\n");
+    outfile->Printf("---------------------------------------\n");
+    int index = 0;
+    for(int h = 0; h < O->nirrep(); h++){
+      for(int i =0; i < O->dim(h); i++){
+        double nd = O->get(h,i);
+        f_d->set(h,i,2*nd-(nd*nd));
+        outfile->Printf(" %5d     %9.3f    %9.3f\n",index,nd,f_d->get(h,i));
+      }
     }
-    */
+    SharedMatrix Dmo(new Matrix(N_mo->nirrep(),N_mo->rowspi(),N_mo->colspi()));
+    Dmo->set_diagonal(f_d);
+    Dmo->back_transform(N_mo);
+    SharedMatrix Dao = Gen_D_mo2ao(Dmo);
+
+    grid_->compute_density(Dao,typekey);
   }
 }
-void CubeProperties::compute_natural_orbitals(boost::shared_ptr<Matrix>NO){
-  std::vector<int> indsa0;
 
-  if (options_["CUBEPROP_ORBITALS"].size() == 0) {
-      for (int ind = 0; ind < NO->colspi()[0]; ind++) {
-          indsa0.push_back(ind);
-      }
-  } else {
-      for (size_t ind = 0; ind < options_["CUBEPROP_ORBITALS"].size(); ind++) {
-          int val = options_["CUBEPROP_ORBITALS"][ind].to_integer();
-          if (val > 0) {
-              indsa0.push_back(abs(val) - 1);
-          }
-      }
-  }
-  std::vector<string> labelsa;
-  CharacterTable ct = basisset_->molecule()->point_group()->char_table();
-  for (size_t ind = 0; ind < indsa0.size(); ++ind){
-      int i = get<1>(info_a_[indsa0[ind]]);
-      int h = get<2>(info_a_[indsa0[ind]]);
-      labelsa.push_back(to_string(i + 1) + "-" + ct.gamma(h).symbol());
-  }
-
-  if (indsa0.size()) compute_orbitals(NO, indsa0,labelsa, "NO_");
-
-}
-void CubeProperties::compute_EUD_direct(boost::shared_ptr<Matrix> Na,boost::shared_ptr<Matrix> Nb, boost::shared_ptr<Vector> n)
+void DensityCubeProperties::compute()
 {
-  outfile->Printf(" DIRECT Computation of EUD is not availing \n");
-  return;
+  print_header();
+  if (tasks_.count("DENSITY"))
+    compute_densities("D");
+  if (tasks_.count("EUD")){
+    compute_EUD("D-mat");
+    compute_EUD("D-NatOrb");
+  }
 }
-}//namespace psi
+}//namespace

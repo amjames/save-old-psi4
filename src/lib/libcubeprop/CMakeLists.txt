@@ -1,6 +1,6 @@
 set(headers_list "")
 # List of headers
-list(APPEND headers_list csg.h cubeprop.h )
+list(APPEND headers_list csg.h cubeprop.h denscubeprop.h)
 
 # If you want to remove some headers specify them explicitly here
 if(DEVELOPMENT_CODE)
@@ -13,7 +13,7 @@ list(SORT headers_list)
 
 set(sources_list "")
 # List of sources
-list(APPEND sources_list csg.cc cubeprop.cc)
+list(APPEND sources_list csg.cc cubeprop.cc denscubeprop.cc)
 
 # If you want to remove some sources specify them explicitly here
 if(DEVELOPMENT_CODE)
