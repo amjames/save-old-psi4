@@ -33,7 +33,10 @@
 #include <libmints/typedefs.h>
 #include <libmints/oeprop.h>
 #include <libmints/wavefunction.h>
-
+#include <bin/ccenergy/ccwave.h>
+namespace boost {
+  template<class T> class shared_ptr;
+}
 namespace psi {
 
 class CubicScalarGrid;
@@ -55,19 +58,41 @@ protected:
   boost::shared_ptr<CubicScalarGrid> grid_;
 
 
-
   // ==>helpers that have no purpose except to prevent repeating code <==//
 
   // Compute Dt_so and transform to ao basis for plotting
   SharedMatrix Dt_ao();
 
   // Transform some kind of density from mo to so basis
-  SharedMatrix Gen_D_mo2so(SharedMatrix Dmo);
+  SharedMatrix Unpaired_Da_mo2so(SharedMatrix Dmo);
+  SharedMatrix Unpaired_Db_mo2so(SharedMatrix Dmo);
   // Transform some kind of density from so to ao basis
-  SharedMatrix Gen_D_so2ao(SharedMatrix Dso);
+  SharedMatrix Unpaired_Da_so2ao(SharedMatrix Dso);
+  SharedMatrix Unpaired_Db_so2ao(SharedMatrix Dso);
   // Transform some kind of density from mo to ao basis
   // This just chains the two above together
-  SharedMatrix Gen_D_mo2ao(SharedMatrix Dmo);
+  SharedMatrix Unpaired_Da_mo2ao(SharedMatrix Dmo);
+  SharedMatrix Unpaired_Db_mo2ao(SharedMatrix Dmo);
+
+  std::pair<SharedMatrix,SharedVector> EUD_Sa_mo();
+  std::pair<SharedMatrix,SharedVector> EUD_Sb_mo();
+  std::pair<SharedMatrix,SharedVector> EUD_Sa_so();
+  std::pair<SharedMatrix,SharedVector> EUD_Sb_so();
+  std::pair<SharedMatrix,SharedVector> EUD_Sa_ao();
+  std::pair<SharedMatrix,SharedVector> EUD_Sb_ao();
+  std::pair<SharedMatrix,SharedVector> compute_EUD_S();
+
+  std::pair<SharedMatrix,SharedVector> EUD_Ua_mo();
+  std::pair<SharedMatrix,SharedVector> EUD_Ub_mo();
+  std::pair<SharedMatrix,SharedVector> EUD_Ua_so();
+  std::pair<SharedMatrix,SharedVector> EUD_Ub_so();
+  std::pair<SharedMatrix,SharedVector> EUD_Ua_ao();
+  std::pair<SharedMatrix,SharedVector> EUD_Ub_ao();
+  std::pair<SharedMatrix,SharedVector> compute_EUD_U();
+
+  void print_Num_UP_info(
+      std::vector<boost::tuple<int,int,double,int,int,double,double>> Upmetric,
+      std::string fdef);
 
 public:
     // => Constructors <= //
@@ -86,7 +111,7 @@ public:
     // => Low-Level Property Computers (Do not use unless you are an advanced client code) <= //
 
     // Compute a density grid task (key.cube)
-    void compute_densities(const std::string key="D");
+    //void compute_densities(const std::string key="D");
     // Compute an ESP grid task (Dt.cube and ESP.cube)
     //void compute_natural_orbitals(const std::vector<int>& indices, const std::vector<std::string>& labels, const std::string& key);
     // Compute effectively unpaired electron density (EUD) grid task

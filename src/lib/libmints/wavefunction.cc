@@ -888,3 +888,72 @@ boost::shared_ptr<Vector> Wavefunction::get_atomic_point_charges() const {
       q_vector->set(i, q[i]);
     return q_vector;
 }
+/*
+ * In a post scf module set the Da matrix to the methods opdm if computed,
+ * should be MO(Pitzer Ordering) basis. Transform to the so basis and set Da_
+ *
+ */
+void Wavefunction::set_postscf_Da(boost::shared_ptr<Matrix>& Da_mo, bool transform_to_so){
+  if(transform_to_so){
+    Da_->zero();
+    int symm = Da_mo->symmetry();
+    int nirrep = Da_mo->nirrep();
+
+    double* temp = new double[Ca_->max_ncol() * Ca_->max_nrow()];
+    for (int h = 0; h < nirrep; h++){
+      int nmol = Ca_->colspi()[h];
+      int nmor = Ca_->colspi()[h^symm];
+      int nsol = Ca_->rowspi()[h];
+      int nsor = Ca_->rowspi()[h^symm];
+      if( !nmol || !nmor || !nsol || !nsor ) continue;
+      double** Clp = Ca_->pointer(h);
+      double** Crp = Ca_->pointer(h^symm);
+      double** Dmop = Da_mo->pointer(h^symm);
+      double** Dsop = Da_->pointer(h^symm);
+      C_DGEMM('N','T',nmol,nsol,nmor,1.0,Dmop[0],nmor,Crp[0],nmor,0.0,temp,nsor);
+      C_DGEMM('N','N',nsol,nsor,nmol,1.0,Clp[0],nmol,temp,nsor,0.0,Dsop[0],nsor);
+    }
+    delete[] temp;
+    if (same_a_b_dens_){
+      Db_ = Da_;
+    }
+  }
+  else
+    Da_ = Da_mo->clone();
+
+}
+/*
+ * In a post scf module set the Db matrix to the methods opdm if computed,
+ * should be MO(Pitzer Ordering) basis. Transform to the so basis and set Da_
+ *
+ */
+void Wavefunction::set_postscf_Db(boost::shared_ptr<Matrix>& Db_mo, bool transform_to_so){
+  if(same_a_b_dens_)
+    throw PSIEXCEPTION("Wavefunction: postscf beta density set, but restricted wavefunction. This makes no sense");
+  if(transform_to_so){
+    Db_->zero();
+    int symm = Db_mo->symmetry();
+    int nirrep = Db_mo->nirrep();
+
+    double* temp = new double[Cb_->max_ncol() * Cb_->max_nrow()];
+    for (int h = 0; h < nirrep; h++){
+      int nmol = Cb_->colspi()[h];
+      int nmor = Cb_->colspi()[h^symm];
+      int nsol = Cb_->rowspi()[h];
+      int nsor = Cb_->rowspi()[h^symm];
+      if( !nmol || !nmor || !nsol || !nsor ) continue;
+      double** Clp = Cb_->pointer(h);
+      double** Crp = Cb_->pointer(h^symm);
+      double** Dmop = Db_mo->pointer(h^symm);
+      double** Dsop = Db_->pointer(h^symm);
+      C_DGEMM('N','T',nmol,nsol,nmor,1.0,Dmop[0],nmor,Crp[0],nmor,0.0,temp,nsor);
+      C_DGEMM('N','N',nsol,nsor,nmol,1.0,Clp[0],nmol,temp,nsor,0.0,Dsop[0],nsor);
+    }
+    delete[] temp;
+  }
+  else
+    Db_=Db_mo->clone();
+
+}
+
+}

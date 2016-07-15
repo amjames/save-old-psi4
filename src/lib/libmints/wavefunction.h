@@ -516,6 +516,13 @@ public:
 
     /// Save the wavefunction to checkpoint
     virtual void save() const;
+
+    /// Set the post_SCF density Da
+    void set_postscf_Da(boost::shared_ptr<Matrix>& Da,bool transform_to_so=true);
+
+    // Set the post_scf density Db
+    void set_postscf_Db(boost::shared_ptr<Matrix>& Db,bool transform_to_so=true);
+
 };
 
 }

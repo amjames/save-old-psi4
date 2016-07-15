@@ -89,7 +89,11 @@ void dipole(boost::shared_ptr<Wavefunction> wfn)
 
     if(wfn->same_a_b_dens()) Pa->scale(0.5);
     oe->set_Da_mo(Pa);
-    if(!wfn->same_a_b_dens()) oe->set_Db_mo(Pb);
+    wfn->set_postscf_Da(Pa);
+    if(!wfn->same_a_b_dens()) {
+      oe->set_Db_mo(Pb);
+      wfn->set_postscf_Db(Pb);
+    }
 
     oe->add("DIPOLE");
     oe->add("QUADRUPOLE");
@@ -98,7 +102,6 @@ void dipole(boost::shared_ptr<Wavefunction> wfn)
 
     // TODO: This section needs work to duplicate the generic CC DIPOLE X, etc.
     //  into the exact method and/or root, like in DETCI
-    outfile->Printf( "\nCC Density OPDM\n\n");
     oe->set_title("CC");
 
     oe->compute();
