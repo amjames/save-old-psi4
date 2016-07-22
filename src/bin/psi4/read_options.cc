@@ -205,8 +205,8 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   directory. -*/
   options.add_str_i("CUBEPROP_FILEPATH", ".");
 
-  options.add("CUBEPROP_EUD_TYPES", ArrayType());
-  options.add_bool("CUBEPROP_EUD_POP",true)
+  options.add("CUBEPROP_EUD_TYPES", new ArrayType());
+  options.add_bool("CUBEPROP_EUD_POP",true);
 
   /*- Properties to compute. Valid tasks include:
       ``DENSITY`` - Da, Db, Dt, Ds

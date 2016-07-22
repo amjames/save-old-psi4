@@ -81,7 +81,7 @@ void DensityCubeProperties::print_header()
 {
     outfile->Printf( "  ********************************************\n");
     outfile->Printf( "  ** ==> Density Cube Properties (v1.0) <== **\n");
-    outfile->Printf( "  **      Effectively unpaired density      **\n" )
+    outfile->Printf( "  **      Effectively unpaired density      **\n");
     outfile->Printf( "  **    analysis and CubeFile generation    **\n");
     outfile->Printf( "  **           by Andrew M. James           **\n");
     outfile->Printf( "  ********************************************\n\n");
@@ -103,17 +103,17 @@ void DensityCubeProperties::print_EUD_summary(
   {
     double nu = std::get<0>(tup);
     total_up += nu;
-    if(nu > 0.5){
+    if(nu > 0.2){
       outfile->Printf(" %2d %4s   %9.6f  %9.6f   %9.6f\n",
         std::get<4>(tup),labels[std::get<3>(tup)],
-        std::get<1>(tup),std::get<2>(tup));
+        std::get<1>(tup),std::get<2>(tup),nu);
     } else {
       double na = std::get<1>(tup);
       double nb = std::get<2>(tup);
-      if((na+nb) > 1.5)
+      if((na+nb) > 1.8)
         total_near_occ+=nu;
       else
-        if((na+nb) <0.5)
+        if((na+nb) <0.2)
           total_near_uocc+=nu;
     }
   }
@@ -208,9 +208,9 @@ SharedMatrix DensityCubeProperties::Du_s_so()
 }
 SharedMatrix DensityCubeProperties::Du_s_ao()
 {
-  return Unpaired_D_so2ao(Du_so);
+  return Unpaired_D_so2ao(Du_s_so());
 }
-void DensityCubeProperties::mulliken_EUD(SharedMatrix Du_ao)
+void DensityCubeProperties::mulliken_EUD(SharedMatrix Du)
 {
     outfile->Printf("   Mulliken Pop analysis: (a.u.)\n");
     outfile->Printf("----------------------------------\n");
@@ -219,17 +219,10 @@ void DensityCubeProperties::mulliken_EUD(SharedMatrix Du_ao)
 
     ::memset(Qt,'\0',mol->natom()*sizeof(double));
 
-    SharedMatrix DuS(Du_ao->clone());
-    boost::shared_ptr<OneBodyAOInt>overlap(integral_->ao_overlap());
-    SharedMatrix S(new Matrix("S",basisset_->nbf(),basisset_->nbf()));
-    overlap->compute(S);
-    DuS->gemm(false,false,1.0,Du_ao,S,0.0);
-
-    //compute D_up*S
     for(int mu =0; mu < basisset_->nbf(); mu++){
       int shellmu = basisset_->function_to_shell(mu);
       int A = basisset_->shell_to_center(shellmu);
-      Qt[A] += DuS->get(0,mu,mu);
+      Qt[A] += Du->get(0,mu,mu);
     }
     outfile->Printf( "Center  Symbol Unpaired Pop\n");
     double sumt = 0.00;
@@ -245,11 +238,16 @@ void DensityCubeProperties::mulliken_EUD(SharedMatrix Du_ao)
 }
 SharedMatrix DensityCubeProperties::compute_EUD_S()
 {
-  SharedMatrix Ds_ao = Du_s_ao();
+  SharedMatrix Du_ao = Du_s_ao();
+  SharedMatrix DuS(new Matrix("Du * S",basisset_->nbf(),basisset_->nbf()));
+  boost::shared_ptr<OneBodyAOInt>overlap(integral_->ao_overlap());
+  SharedMatrix S(new Matrix("S",basisset_->nbf(),basisset_->nbf()));
+  overlap->compute(S);
+  DuS->gemm(false,false,1.0,Du_ao,S,0.0);
   if(do_pop_analysis_){
-    mulliken_EUD(Ds_ao);
+    mulliken_EUD(DuS);
   }
-  return Ds_ao;
+  return DuS;
 }
 void DensityCubeProperties::compute_EUD(std::string type)
 {
@@ -257,14 +255,8 @@ void DensityCubeProperties::compute_EUD(std::string type)
     throw PSIEXCEPTION("DENSCUBEPROP: a/b density is the same requesting EUD makes no sense");
 
   if(type == "S" || type=="ALL"){
-    SharedMatrix Du= compute_EUD_S();
-    grid_->compute_density(Du_ao,"EUD_S")
-    SharedMatrix DuS(Du_ao->clone());
-    boost::shared_ptr<OneBodyAOInt>overlap(integral_->ao_overlap());
-    SharedMatrix S(new Matrix("S",basisset_->nbf(),basisset_->nbf()));
-    overlap->compute(S);
-    DuS->gemm(false,false,1.0,Du,S,0.0);
-    grid_->compute_density(DuS,"EUD_SmOL");
+    SharedMatrix Du = compute_EUD_S();
+    grid_->compute_density(Du,"EUD_S");
   }
 }
 void DensityCubeProperties::compute()

@@ -61,7 +61,7 @@ protected:
   // Transform some kind of density from so to ao basis
   SharedMatrix Unpaired_D_so2ao(SharedMatrix Dso);
 
-  SharedMatrix compute_EUD_S(bool mulliken);
+  SharedMatrix compute_EUD_S();
   SharedMatrix Du_s_mo();
   SharedMatrix Du_s_so();
   SharedMatrix Du_s_ao();
@@ -97,7 +97,7 @@ public:
      *        atom, useful for deducing regions of possible chemical activity.
      *        Gives an idea of how well localized a radical is for example
      */
-    void compute_EUD(std::string type="ALL", bool atomic_contrib=true);
+    void compute_EUD(std::string type="ALL");
 
 };
 
