@@ -205,7 +205,8 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   directory. -*/
   options.add_str_i("CUBEPROP_FILEPATH", ".");
 
-  options.add("CUBEPROP_EUD_NUMBER_FUNCTION", new ArrayType());
+  options.add("CUBEPROP_EUD_TYPES", ArrayType());
+  options.add_bool("CUBEPROP_EUD_POP",true)
 
   /*- Properties to compute. Valid tasks include:
       ``DENSITY`` - Da, Db, Dt, Ds
@@ -221,6 +222,7 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   /*- List of orbital indices for which cube files are generated (1-based,
   $+$ for alpha, $-$ for beta). All orbitals computed if empty. -*/
   options.add("CUBEPROP_ORBITALS", new ArrayType());
+  options.add("CUBEPROP_NATURAL_ORBITALS", new ArrayType());
   /*- List of basis function indices for which cube files are generated
   (1-based). All basis functions computed if empty.-*/
   options.add("CUBEPROP_BASIS_FUNCTIONS", new ArrayType());

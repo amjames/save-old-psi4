@@ -956,4 +956,3 @@ void Wavefunction::set_postscf_Db(boost::shared_ptr<Matrix>& Db_mo, bool transfo
 
 }
 
-}
