@@ -45,7 +45,7 @@
 namespace psi {
 
 #define T3_TIMER_ON (0)
-
+#define DPD_DEBUG
 #define DPD_BIGNUM 2147483647 /* the four-byte signed int limit */
 /* #define ALL_BUF4_SORT_OOC */
 

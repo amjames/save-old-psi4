@@ -862,8 +862,98 @@ int DPD::buf4_sort_axpy(dpdbuf4 *InBuf, int outfilenum, enum indices index,
             }
         }
         else {
-            outfile->Printf( "LIBDPD: Out-of-core algorithm not yet coded for qprs sort.\n");
-            dpd_error("buf4_sort_axpy", "outfile");
+            for(Gpq=0; Gpq < nirreps; Gpq++) {
+                Grs = Gpq ^ my_irrep;
+
+                /* determine how many rows of OutBuf/InBuf we can store in half the core */
+                rows_per_bucket = dpd_memfree()/(2 * OutBuf.params->coltot[Grs]);
+                if(rows_per_bucket > OutBuf.params->rowtot[Gpq])
+                    rows_per_bucket = OutBuf.params->rowtot[Gpq];
+                nbuckets = (int) ceil((double) OutBuf.params->rowtot[Gpq]/(double) rows_per_bucket);
+                if(nbuckets == 1) rows_left = rows_per_bucket;
+                else rows_left = OutBuf.params->rowtot[Gpq] % rows_per_bucket;
+
+                /* allocate space for the bucket of rows */
+                buf4_mat_irrep_init_block(&OutBuf, Gpq, rows_per_bucket);
+                buf4_mat_irrep_init_block(InBuf, Gpq, rows_per_bucket);
+
+                for(n=0; n < (rows_left ? nbuckets-1 : nbuckets); n++) {
+
+                    out_row_start = n * rows_per_bucket;
+
+                    for(m=0; m < (rows_left ? nbuckets-1 : nbuckets); m++) {
+                        in_row_start = m * rows_per_bucket;
+                        buf4_mat_irrep_rd_block(InBuf, Gpq, in_row_start, rows_per_bucket);
+                        for(pq=0; pq < rows_per_bucket; pq++) {
+                            /* check to see if this row is contained in the current input-bucket */
+                            p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                            q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                            qp = InBuf->params->rowidx[q][p] - in_row_start;
+                            if(qp >= 0 && qp < rows_per_bucket) {
+                                C_DAXPY(OutBuf.params->coltot[Grs],alpha, InBuf->matrix[Gpq][qp], 1,
+                                        OutBuf.matrix[Gpq][pq], 1);
+                            }
+                        }
+                    }
+
+                    if(rows_left) {
+                        in_row_start = m * rows_per_bucket;
+                        buf4_mat_irrep_rd_block(InBuf, Gpq, in_row_start, rows_left);
+                        for(pq=0; pq < rows_per_bucket; pq++) {
+                            /* check to see if this row is contained in the current input-bucket */
+                            p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                            q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                            qp = InBuf->params->rowidx[q][p] - in_row_start;
+                            if(qp >= 0 && qp < rows_left) {
+                                C_DAXPY(OutBuf.params->coltot[Grs], alpha,  InBuf->matrix[Gpq][qp], 1,
+                                        OutBuf.matrix[Gpq][pq], 1);
+                            }
+                        }
+                    }
+
+                    buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, rows_per_bucket);
+
+                } /* n */
+                if(rows_left) {
+
+                    out_row_start = n * rows_per_bucket;
+
+                    for(m=0; m < (rows_left ? nbuckets-1 : nbuckets); m++) {
+                        in_row_start = m * rows_per_bucket;
+                        buf4_mat_irrep_rd_block(InBuf, Gpq, in_row_start, rows_per_bucket);
+                        for(pq=0; pq < rows_left; pq++) {
+                            /* check to see if this row is contained in the current input-bucket */
+                            p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                            q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                            qp = InBuf->params->rowidx[q][p] - in_row_start;
+                            if(qp >= 0 && qp < rows_per_bucket) {
+                                C_DAXPY(OutBuf.params->coltot[Grs],alpha, InBuf->matrix[Gpq][qp], 1,
+                                        OutBuf.matrix[Gpq][pq], 1);
+                            }
+                        }
+                    }
+
+                    if(rows_left) {
+                        in_row_start = m * rows_per_bucket;
+                        buf4_mat_irrep_rd_block(InBuf, Gpq, in_row_start, rows_left);
+                        for(pq=0; pq < rows_left; pq++) {
+                            /* check to see if this row is contained in the current input-bucket */
+                            p = OutBuf.params->roworb[Gpq][pq+out_row_start][0];
+                            q = OutBuf.params->roworb[Gpq][pq+out_row_start][1];
+                            qp = InBuf->params->rowidx[q][p] - in_row_start;
+                            if(qp >= 0 && qp < rows_left) {
+                                C_DAXPY(OutBuf.params->coltot[Grs],alpha, InBuf->matrix[Gpq][qp], 1,
+                                        OutBuf.matrix[Gpq][pq], 1);
+                            }
+                        }
+                    }
+
+                }
+
+                buf4_mat_irrep_wrt_block(&OutBuf, Gpq, out_row_start, rows_left);
+                buf4_mat_irrep_close_block(InBuf, Gpq, rows_per_bucket);
+                buf4_mat_irrep_close_block(&OutBuf, Gpq, rows_per_bucket);
+            } /* Gpq */
         }
 
 #ifdef DPD_TIMER

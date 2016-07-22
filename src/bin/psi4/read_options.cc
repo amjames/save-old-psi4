@@ -1835,6 +1835,11 @@ int read_options(const std::string &name, Options & options, bool suppress_print
   if(name == "CCHBAR"|| options.read_globals()) {
      /*- MODULEDESCRIPTION Assembles the coupled cluster effective Hamiltonian. Called whenever CC
          properties and/or gradients are required. -*/
+    /* Temporary options for testing new Wabei UHF codes */
+    options.add_bool("NEW_WABEI_AAAA",false);
+    options.add_bool("NEW_WABEI_ABAB",false);
+    options.add_bool("NEW_WABEI_BABA",false);
+    options.add_bool("NEW_WABEI_BBBB",false);
     /*- Wavefunction type !expert -*/
     options.add_str("WFN", "SCF");
     /*- Reference wavefunction type for EOM computations -*/
