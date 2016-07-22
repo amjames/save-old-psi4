@@ -61,496 +61,232 @@ DensityCubeProperties::DensityCubeProperties(SharedWavefunction wfn) :
 DensityCubeProperties::~DensityCubeProperties()
 {
 }
-
 void DensityCubeProperties::common_init()
 {
   Options &options = Process::environment.options;
   print_ = options.get_int("PRINT");
+  cubepath_ =  options.get_str("CUBEPROP_FILEPATH");
+  do_pop_analysis_ = options.get_bool("CUBEPROP_EUD_POP");
 
   for(size_t ind = 0; ind < options["CUBEPROP_TASKS"].size(); ind++){
     std::string task_name = options["CUBEPROP_TASKS"][ind].to_string();
     add(task_name);
   }
 
-  boost::shared_ptr<Molecule> mol = basisset_->molecule();
   grid_ = boost::shared_ptr<CubicScalarGrid>(new CubicScalarGrid(basisset_, options));
   grid_->set_filepath(options.get_str("CUBEPROP_FILEPATH"));
 
 }
-
 void DensityCubeProperties::print_header()
 {
-    outfile->Printf( "  ==> Density based plotting tool (v2.0) <==\n\n");
+    outfile->Printf( "  ********************************************\n");
+    outfile->Printf( "  ** ==> Density Cube Properties (v1.0) <== **\n");
+    outfile->Printf( "  **      Effectively unpaired density      **\n" )
+    outfile->Printf( "  **    analysis and CubeFile generation    **\n");
+    outfile->Printf( "  **           by Andrew M. James           **\n");
+    outfile->Printf( "  ********************************************\n\n");
     grid_->print_header();
     outfile->Flush();
 }
-
-SharedMatrix DensityCubeProperties::Unpaired_Da_mo2so(SharedMatrix Dmo)
+void DensityCubeProperties::print_EUD_summary(
+    std::vector<std::tuple<double,double,double,int,int>> info)
 {
-  std::string new_name(Dmo->name()+"->SO");
-  SharedMatrix Dso = SharedMatrix(new Matrix("temp",
-      Ca_so_->nirrep(),Ca_so_->rowspi(),Cb_so_->colspi()));
-  for(int h =0; h < Dmo->nirrep(); h++){
-    int nmo = Ca_so_->colspi()[h];
-    int nso = Ca_so_->rowspi()[h];
-
-    if (!nmo || !nso) continue;
-    double** Dmop = Dmo->pointer(h);
-    double** Cp  = Ca_so_->pointer(h);
-    double** Dsop = Dso->pointer(h);
-    C_DGEMM('N','N',nso,nmo,nmo,1.0,Cp[0],nmo,Dmop[0],nmo,0.0,Dsop[0],nmo);
-  }
-
-  return Dso;
-
-}
-
-SharedMatrix DensityCubeProperties::Unpaired_Db_mo2so(SharedMatrix Dmo)
-{
-  std::string new_name(Dmo->name()+"->SO");
-  SharedMatrix Dso = SharedMatrix(new Matrix("temp",
-      Cb_so_->nirrep(),Cb_so_->rowspi(),Cb_so_->colspi()));
-  for(int h =0; h < Dmo->nirrep(); h++){
-    int nmo = Cb_so_->colspi()[h];
-    int nso = Cb_so_->rowspi()[h];
-
-    if (!nmo || !nso) continue;
-    double** Dmop = Dmo->pointer(h);
-    double** Cp  = Cb_so_->pointer(h);
-    double** Dsop = Dso->pointer(h);
-    C_DGEMM('N','N',nso,nmo,nmo,1.0,Cp[0],nmo,Dmop[0],nmo,0.0,Dsop[0],nmo);
-  }
-
-  return Dso;
-
-}
-
-SharedMatrix DensityCubeProperties::Unpaired_Da_so2ao(SharedMatrix Dso)
-{
-  std::string new_name(Dso->name()+"->ao");
-  SharedMatrix Dao(new Matrix(new_name,
-      Ca_so_->nrow(),Ca_so_->ncol()));
-
-  int offset = 0;
-  for (int h = 0; h < Ca_so_->nirrep(); h++){
-
-    int ncol = Ca_so_->ncol();
-    int nmo = Ca_so_->colspi()[h];
-    int nso = AO2USO_->colspi()[h];
-    int nao = AO2USO_->rowspi()[h];
-
-    if (!nmo || !nso || !nao)continue;
-    double** Dsop = Dso->pointer(h);
-    double** Up = AO2USO_->pointer(h);
-    double** Daop = Dao->pointer(0);
-
-    C_DGEMM(
-        'N','N',
-        nao,nmo,nso,
-        1.0,Up[0],nso,
-        Dsop[0],nmo,0.0,
-        &Daop[0][offset],ncol
-        );
-    offset += nmo;
-  }
-  return Dao;
-}
-
-SharedMatrix DensityCubeProperties::Unpaired_Db_so2ao(SharedMatrix Dso)
-{
-  std::string new_name(Dso->name()+"->ao");
-  SharedMatrix Dao(new Matrix(new_name,
-      Cb_so_->nrow(),Cb_so_->ncol()));
-
-  int offset = 0;
-  for (int h = 0; h < Cb_so_->nirrep(); h++){
-
-    int ncol = Cb_so_->ncol();
-    int nmo = Cb_so_->colspi()[h];
-    int nso = AO2USO_->colspi()[h];
-    int nao = AO2USO_->rowspi()[h];
-
-    if (!nmo || !nso || !nao)continue;
-    double** Dsop = Dso->pointer(h);
-    double** Up = AO2USO_->pointer(h);
-    double** Daop = Dao->pointer(0);
-
-    C_DGEMM(
-        'N','N',
-        nao,nmo,nso,
-        1.0,Up[0],nso,
-        Dsop[0],nmo,0.0,
-        &Daop[0][offset],ncol
-        );
-    offset += nmo;
-  }
-  return Dao;
-}
-
-SharedMatrix DensityCubeProperties::Unpaired_Da_mo2ao(SharedMatrix Dmo)
-{
-  //first half mo->so
-  SharedMatrix Dso = Unpaired_Da_mo2so(Dmo);
-  //then  so->ao
-  SharedMatrix Dao = Unpaired_Da_so2ao(Dso);
-  std::string new_name (Dmo->name()+"->ao");
-  Dao->set_name(new_name);
-  return Dao;
-}
-
-SharedMatrix DensityCubeProperties::Unpaired_Db_mo2ao(SharedMatrix Dmo)
-{
-  //first half mo->so
-  SharedMatrix Dso = Unpaired_Db_mo2so(Dmo);
-  //then  so->ao
-  SharedMatrix Dao = Unpaired_Db_so2ao(Dso);
-  std::string new_name (Dmo->name()+"->ao");
-  Dao->set_name(new_name);
-  return Dao;
-}
-
-// prints table of NO occupation numbers, contributions to NUp with
-// alpha/beta HONO-LUNO info
-void DensityCubeProperties::print_Num_UP_info(
-    std::vector<boost::tuple<int,int,double,int,int,double,double>>Upmetric,
-    std::string fdef
-  )
-{
-  //tuple holds
-  //aNO(h),aNO(i)aNOON, ,bNOON, Nup-contribution
+  std::sort(info.begin(),info.end());
+  outfile->Printf("   Largest Contributions\n");
+  outfile->Printf("   orb    NOON(a)    NOON(b)      u.p \n");
+  outfile->Printf("-------------------------------------------\n");
   char** labels = basisset_->molecule()->irrep_labels();
-  //construct header: line indent 4sp.  +40 chars
-  outfile->Printf("    Nonzero contributions: f_up(n) = \n");
-  //line indent for function definition
-  std::string func_def("    ");
-  int indent = ((int)(40 - fdef.length())/2);
-  for(int spno =0; spno < indent -1; spno++) func_def += " ";
-  func_def += fdef;
-  func_def += "\n";
-  outfile->Printf(func_def.c_str());
-  outfile->Printf("=================================================\n");
-  outfile->Printf("                   Occupation          Unpaired \n");
-  outfile->Printf("                     Number          contribution\n");
-  outfile->Printf("-------------------------------------------------\n");
-  int nalpha = wfn_->nalpha();
-  int nbeta  = wfn_->nbeta();
-  double Nup_total = 0.00;
-  for(int index = 0; index < wfn_->nmo(); ++index){
-    double Nup_cont = boost::get<6>(Upmetric[index]);
-    if(Nup_cont != 100.00){
-      int irr_a = boost::get<0>(Upmetric[index]);
-      int idx_a = boost::get<1>(Upmetric[index]);
-      double NOONa = boost::get<2>(Upmetric[index]);
-      int irr_b = boost::get<3>(Upmetric[index]);
-      int idx_b = boost::get<4>(Upmetric[index]);
-      double NOONb = boost::get<5>(Upmetric[index]);
-      if(index < nalpha){
-        outfile->Printf("alpha-#%2d   %4d%3s %8.3f \n",
-            index, idx_a,labels[irr_a],NOONa);
-      }else{
-        outfile->Printf("alpha-#%2d   %4d%3s %8.3f \n",
-            index, idx_a,labels[irr_a],NOONa);
-      }
-      if(index < nalpha){
-        outfile->Printf(" beta-#%2d   %4d%3s %8.3f   %8.3f \n",
-            index, idx_b,labels[irr_b],NOONb,Nup_cont);
-      }else{
-        outfile->Printf(" beta-#%2d   %4d%3s %8.3f   %8.3f\n",
-            index, idx_b,labels[irr_b],NOONb,Nup_cont);
-      }
-      Nup_total += Nup_cont;
+  double total_up = 0.00;
+  double total_near_occ=0.00;
+  double total_near_uocc=0.00;
+  for(auto tup: info)
+  {
+    double nu = std::get<0>(tup);
+    total_up += nu;
+    if(nu > 0.5){
+      outfile->Printf(" %2d %4s   %9.6f  %9.6f   %9.6f\n",
+        std::get<4>(tup),labels[std::get<3>(tup)],
+        std::get<1>(tup),std::get<2>(tup));
+    } else {
+      double na = std::get<1>(tup);
+      double nb = std::get<2>(tup);
+      if((na+nb) > 1.5)
+        total_near_occ+=nu;
+      else
+        if((na+nb) <0.5)
+          total_near_uocc+=nu;
     }
   }
-  outfile->Printf("-------------------------------------------------\n");
-  outfile->Printf("TOTAL Nu = %8.3f e-\n",Nup_total);
-  outfile->Printf("-------------------------------------------------\n");
+  outfile->Printf("-------------------------------------------\n");
+  outfile->Printf(    "Total up e-             = %9.6f\n",total_up);
+  outfile->Printf(    "Nearly DOCC             = %9.6f\n",total_near_occ);
+  outfile->Printf(    "Nearly UOCC             = %9.6f\n",total_near_uocc);
 }
-
-
-
-                  // --> EUD S Function  <--//
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sa_mo()
+SharedMatrix DensityCubeProperties::Unpaired_D_so2ao(SharedMatrix Dso)
 {
-  std::pair<SharedMatrix,SharedVector> pair = Na_mo();
-  SharedMatrix N = pair.first;
-  SharedVector O = pair.second;
-  SharedVector Os(new Vector("Alpha Nup(S)",O->nirrep(),O->dimpi()));
-  SharedMatrix Smo(new Matrix("Alpha unpaired Denisty(S)",
-        N->nirrep(),N->rowspi(),N->colspi()));
-  for(int h=0; h<O->nirrep(); ++h){
-    for(int i =0; i < O->dimpi()[h]; ++i){
-      double ni = O->get(h,i);
-      double ns = ni*ni*(1-ni)*(1-ni);
-      Os->set(h,i,ns);
+  std::string new_name(Dso->name()+"->ao");
+  double* temp = new double[AO2USO_->max_ncol() * AO2USO_->max_nrow()];
+  //  Ca_so _
+  SharedMatrix Dao(new Matrix(new_name,
+      basisset_->nbf(),basisset_->nbf()));
+
+  int symm = Dso->symmetry();
+  for (int h = 0; h < AO2USO_->nirrep(); h++){
+
+    int nao = AO2USO_->rowspi()[0];
+    int nsol = AO2USO_->colspi()[h];
+    int nsor = AO2USO_->colspi()[h^symm];
+
+    if (!nsol || !nsor )continue;
+    double** Ulp = AO2USO_->pointer(h);
+    double** Urp = AO2USO_->pointer(h^symm);
+    double** DSOp = Dso->pointer(h^symm);
+    double** DAOp = Dao->pointer();
+
+    C_DGEMM('N','T',nsol,nao,nsor,1.0,DSOp[0],nsor,Urp[0],nsor,0.0,temp,nao);
+    C_DGEMM('N','N',nao,nao,nsol,1.0,Ulp[0],nsol,temp,nao,1.0,DAOp[0],nao);
+  }
+  delete[] temp;
+  return Dao;
+}
+SharedMatrix DensityCubeProperties::Du_s_mo()
+{
+  outfile->Printf("       Effectively unpaired-electron analysis\n");
+  outfile->Printf("                 f_u(na,nb) = \n");
+  outfile->Printf("            (na+nb)^2*[(1-na)+(1-nb)]^2\n");
+  outfile->Printf("==================================================\n");
+  std::pair<SharedMatrix,SharedVector> NaOa = Na_mo();
+  std::pair<SharedMatrix,SharedVector> NbOb = Nb_mo();
+  SharedMatrix Na = NaOa.first;
+  SharedMatrix Nb = NbOb.first;
+  SharedVector Oa = NaOa.second;
+  SharedVector Ob = NbOb.second;
+  SharedMatrix Du(new Matrix("Effectively Unpaired Density",Na->rowspi(),Na->colspi()));
+  Du->zero();
+  std::vector<std::tuple<double,double,double,int,int>> f_s_info;
+  //totals for my own analysis
+  for(int h =0; h < Oa->nirrep(); h++){
+    for(int i =0; i < Oa->dimpi()[h]; i++){
+      double na=Oa->get(h,i);
+      double nb=Ob->get(h,i);
+      double nt=na+nb;
+      double del=(1-na)+(1-nb);
+      double tot =(nt*nt)*(del*del);
+      Du->set(h,i,i,tot);
+      f_s_info.push_back(std::make_tuple(tot,na,nb,h,i));
     }
   }
-  Smo->set_diagonal(Os);
-  Smo->back_transform(N);
-  return make_pair(Smo,Os);
+  print_EUD_summary(f_s_info);
+  outfile->Printf("Tr(Du(NO)                        = %9.3f\n",Du->trace());
+  Du->back_transform(Na);
+  outfile->Printf("Tr(Du(MO))                       = %9.3f\n",Du->trace());
+  return Du;
 }
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sb_mo()
+SharedMatrix DensityCubeProperties::Du_s_so()
 {
-  std::pair<SharedMatrix,SharedVector> pair = Nb_mo();
-  SharedMatrix N = pair.first;
-  SharedVector O = pair.second;
-  SharedVector Os(new Vector("Beta Nup(S)",O->nirrep(),O->dimpi()));
-  SharedMatrix Smo(new Matrix("Beta unpaired Denisty(S)",
-        N->nirrep(),N->rowspi(),N->colspi()));
-  for(int h=0; h<O->nirrep(); ++h){
-    for(int i =0; i < O->dimpi()[h]; ++i){
-      double ni = O->get(h,i);
-      double ns = ni*ni*(1-ni)*(1-ni);
-      Os->set(h,i,ns);
-    }
+  SharedMatrix Du_mo = Du_s_mo();
+  SharedMatrix Du_so(new Matrix("Du(SO)",Ca_so_->rowspi(),Ca_so_->colspi()));
+
+  int symm = Du_mo->symmetry();
+  double* temp = new double[Ca_so_->max_ncol() * Cb_so_->max_nrow()];
+  for(int h=0; h < Du_mo->nirrep();h++){
+    int nmol = Ca_so_->colspi()[h];
+    int nmor = Ca_so_->colspi()[h^symm];
+    int nsol = Ca_so_->rowspi()[h];
+    int nsor = Ca_so_->rowspi()[h^symm];
+    if(!nmol|| !nmor || !nsol || !nsor)continue;
+    double** Clp = Ca_so_->pointer(h);
+    double** Crp = Ca_so_->pointer(h^symm);
+    double** Dmop = Du_mo->pointer(h^symm);
+    double** Dsop = Du_so->pointer(h^symm);
+    C_DGEMM('N','T',nmol,nsor,nmor,1.0,Dmop[0],nmor,Crp[0],nmor,0.0,temp,nsor);
+    C_DGEMM('N','N',nsol,nsor,nmol,1.0,Clp[0],nmol,temp,nsor,0.0,Dsop[0],nsor);
   }
-  Smo->set_diagonal(Os);
-  Smo->back_transform(N);
-  return make_pair(Smo,Os);
-
+  delete[] temp;
+  outfile->Printf("Tr(Du(SO))                       = %9.3f\n",Du_so->trace());
+  return Du_so;
 }
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sa_so()
+SharedMatrix DensityCubeProperties::Du_s_ao()
 {
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Sa_mo();
-  SharedMatrix Smo = pair.first;
-  SharedVector Os = pair.second;
-  SharedMatrix Sso = Unpaired_Da_mo2so(Smo);
-  return make_pair(Sso,Os);
-
+  return Unpaired_D_so2ao(Du_so);
 }
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sb_so()
+void DensityCubeProperties::mulliken_EUD(SharedMatrix Du_ao)
 {
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Sb_mo();
-  SharedMatrix Smo = pair.first;
-  SharedVector Os = pair.second;
-  SharedMatrix Sso = Unpaired_Db_mo2so(Smo);
-  return make_pair(Sso,Os);
+    outfile->Printf("   Mulliken Pop analysis: (a.u.)\n");
+    outfile->Printf("----------------------------------\n");
+    boost::shared_ptr<Molecule> mol = basisset_->molecule();
+    double* Qt = new double[mol->natom()];
 
+    ::memset(Qt,'\0',mol->natom()*sizeof(double));
 
-}
+    SharedMatrix DuS(Du_ao->clone());
+    boost::shared_ptr<OneBodyAOInt>overlap(integral_->ao_overlap());
+    SharedMatrix S(new Matrix("S",basisset_->nbf(),basisset_->nbf()));
+    overlap->compute(S);
+    DuS->gemm(false,false,1.0,Du_ao,S,0.0);
 
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sa_ao()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Sa_so();
-  SharedMatrix Sso = pair.first;
-  SharedVector Os = pair.second;
-  SharedMatrix Sao = Unpaired_Da_so2ao(Sso);
-  return make_pair(Sso,Os);
-}
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Sb_ao()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Sb_so();
-  SharedMatrix Sso = pair.first;
-  SharedVector Os = pair.second;
-  //SharedMatrix Sao = Unpaired_Db_so2ao(Sso);
-  SharedMatrix Sao = Unpaired_Db_so2ao(pair.first);
-  return make_pair(Sso,Os);
-}
-
-std::pair<SharedMatrix, SharedVector> DensityCubeProperties::compute_EUD_S()
-{
-  std::pair<SharedMatrix,SharedVector> pair_a = EUD_Sa_ao();
-  std::pair<SharedMatrix,SharedVector> pair_b = EUD_Sb_ao();
-  outfile->Printf("Sa\n");
-  SharedMatrix Sa = pair_a.first;
-  Sa->print_out();
-  outfile->Printf("Sb\n");
-  SharedMatrix Sb = pair_b.first;
-  Sb->print_out();
-  SharedVector Os_a = pair_a.second;
-  SharedVector Os_b = pair_b.second;
-  SharedMatrix St = Sa->clone();
-  St->add(Sb);
-  outfile->Printf("St\n");
-  SharedVector Os_t(Os_a->clone());
-  Os_t->add(Os_b);
-  std::pair<SharedMatrix,SharedVector> no_pair_a = Na_mo();
-  std::pair<SharedMatrix,SharedVector> no_pair_b = Nb_mo();
-  SharedVector Oa = no_pair_a.second;
-  SharedVector Ob = no_pair_b.second;
-  outfile->Printf("Oa\n");
-  Oa->print_out();
-  outfile->Printf("Ob\n");
-  //aNO(h),aNO(i)aNOON, ,bNOON, Nup-contribution
-  std::vector<boost::tuple<int,int,double,int,int,double,double> > S_metric;
-  for(int h = 0; h < Os_t->nirrep(); h++){
-    for(int i = 0; i < Os_t->dimpi()[h]; i++){
-      S_metric.push_back(boost::tuple<int,int,double,int,int,double,double>(
-            i,h,Oa->get(h,i),i,h,Ob->get(h,i),Os_t->get(h,i)));
+    //compute D_up*S
+    for(int mu =0; mu < basisset_->nbf(); mu++){
+      int shellmu = basisset_->function_to_shell(mu);
+      int A = basisset_->shell_to_center(shellmu);
+      Qt[A] += DuS->get(0,mu,mu);
     }
-  }
-  DensityCubeProperties::print_Num_UP_info(S_metric,std::string("n^2*(2-n)^2"));
-  return make_pair(St,Os_t);
-}
-
-
-                  // --> EUD U Function  <--//
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ua_mo()
-{
-  std::pair<SharedMatrix,SharedVector> pair = Na_mo();
-  SharedMatrix N = pair.first;
-  SharedVector O = pair.second;
-  SharedVector Ou(new Vector("Alpha Nup(U)",O->nirrep(),O->dimpi()));
-  SharedMatrix Umo(new Matrix("Alpha unpaired Denisty(U)",
-        N->nirrep(),N->rowspi(),N->colspi()));
-  for(int h=0; h<O->nirrep(); ++h){
-    for(int i =0; i < O->dimpi()[h]; ++i){
-      double ni = O->get(h,i);
-      double nu = std::min(ni,1-ni);
-      Ou->set(h,i,nu);
+    outfile->Printf( "Center  Symbol Unpaired Pop\n");
+    double sumt = 0.00;
+    for(int A =0; A < mol->natom(); A++){
+      outfile->Printf("%5d    %2s    %8.5f\n", \
+          A+1,mol->label(A).c_str(),Qt[A]);
+      sumt+= Qt[A];
     }
+    outfile->Printf("----------------------------------\n");
+    outfile->Printf("Total unpaired = %8.5f\n",sumt);
+    outfile->Printf("----------------------------------\n");
+    delete[] Qt;
+}
+SharedMatrix DensityCubeProperties::compute_EUD_S()
+{
+  SharedMatrix Ds_ao = Du_s_ao();
+  if(do_pop_analysis_){
+    mulliken_EUD(Ds_ao);
   }
-  Umo->set_diagonal(Ou);
-  Umo->back_transform(N);
-  return make_pair(Umo,Ou);
+  return Ds_ao;
 }
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ub_mo()
-{
-  std::pair<SharedMatrix,SharedVector> pair = Nb_mo();
-  SharedMatrix N = pair.first;
-  SharedVector O = pair.second;
-  SharedVector Ou(new Vector("Alpha Nup(U)",O->nirrep(),O->dimpi()));
-  SharedMatrix Umo(new Matrix("Alpha unpaired Denisty(U)",
-        N->nirrep(),N->rowspi(),N->colspi()));
-  for(int h=0; h<O->nirrep(); ++h){
-    for(int i =0; i < O->dimpi()[h]; ++i){
-      double ni = O->get(h,i);
-      double nu = std::min(ni,1-ni);
-      Ou->set(h,i,nu);
-    }
-  }
-  Umo->set_diagonal(Ou);
-  Umo->back_transform(N);
-  return make_pair(Umo,Ou);
-}
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ua_so()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Ua_mo();
-  SharedMatrix Umo = pair.first;
-  SharedVector Ou = pair.second;
-  SharedMatrix Uso = Unpaired_Da_mo2so(Umo);
-  return make_pair(Uso,Ou);
-
-}
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ub_so()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Ub_mo();
-  SharedMatrix Umo = pair.first;
-  SharedVector Ou = pair.second;
-  SharedMatrix Uso = Unpaired_Db_mo2so(Umo);
-  return make_pair(Uso,Ou);
-
-}
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ua_ao()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Ua_so();
-  SharedMatrix Umo = pair.first;
-  SharedVector Ou = pair.second;
-  SharedMatrix Uso = Unpaired_Da_so2ao(Umo);
-  return make_pair(Uso,Ou);
-
-}
-
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::EUD_Ub_ao()
-{
-  std::pair<SharedMatrix,SharedVector> pair = EUD_Ub_so();
-  SharedMatrix Umo = pair.first;
-  SharedVector Ou = pair.second;
-  SharedMatrix Uso = Unpaired_Db_so2ao(Umo);
-  return make_pair(Uso,Ou);
-
-}
-std::pair<SharedMatrix,SharedVector> DensityCubeProperties::compute_EUD_U()
-{
-  std::pair<SharedMatrix,SharedVector> pair_a = EUD_Ua_ao();
-  std::pair<SharedMatrix,SharedVector> pair_b = EUD_Ub_ao();
-  SharedMatrix Ua = pair_a.first;
-  SharedMatrix Ub = pair_b.first;
-  SharedVector Ou_a = pair_a.second;
-  SharedVector Ou_b = pair_b.second;
-  SharedMatrix Ut = Ua->clone();
-  Ut->add(Ub);
-  SharedVector Ou_t(Ou_a->clone());
-  Ou_t->add(Ou_b);
-  std::pair<SharedMatrix,SharedVector> no_pair_a = Na_mo();
-  std::pair<SharedMatrix,SharedVector> no_pair_b = Nb_mo();
-  SharedVector Oa = no_pair_a.second;
-  SharedVector Ob = no_pair_b.second;
-  //aNO(h),aNO(i)aNOON, ,bNOON, Nup-contribution
-  std::vector<boost::tuple<int,int,double,int,int,double,double> > U_metric;
-  for(int h = 0; h < Ou_t->nirrep(); h++){
-    for(int i = 0; i < Ou_t->dimpi()[h]; i++){
-      U_metric.push_back(boost::tuple<int,int,double,int,int,double,double>(
-            h,i,Oa->get(h,i),h,i,Ob->get(h,i),Ou_t->get(h,i)));
-    }
-  }
-  DensityCubeProperties::print_Num_UP_info(U_metric,std::string("min(n,2-n)"));
-  return make_pair(Ut,Ou_t);
-}
-
-
-void DensityCubeProperties::compute_EUD(std::string type, bool atomic_contrib)
+void DensityCubeProperties::compute_EUD(std::string type)
 {
   if (same_dens_)
     throw PSIEXCEPTION("DENSCUBEPROP: a/b density is the same requesting EUD makes no sense");
-  /* std::string Skey("EUD_S"); */
-  /* std::pair<SharedMatrix,SharedVector> S_pair = compute_EUD_S(); */
-  /* std::string Ukey("EUD_U"); */
-  /* std::pair<SharedMatrix,SharedVector> U_pair = compute_EUD_U(); */
-  /* grid_->compute_density(S_pair.first,Skey); */
-  /* grid_->compute_density(U_pair.first,Ukey); */
-  outfile->Printf("Ca_so_\n");
-  Ca_so_->print_out();
 
-  outfile->Printf("S_so = so basis overlap\n");
-  SharedMatrix S = overlap_so();
-  S->print_out();
-
-  if(wfn_->name() == "CCEnergyWavefunction"){
-    set_Da_mo(wfn_->get_OPDM("A"));
-    set_Db_mo(wfn_->get_OPDM("B"));
+  if(type == "S" || type=="ALL"){
+    SharedMatrix Du= compute_EUD_S();
+    grid_->compute_density(Du_ao,"EUD_S")
+    SharedMatrix DuS(Du_ao->clone());
+    boost::shared_ptr<OneBodyAOInt>overlap(integral_->ao_overlap());
+    SharedMatrix S(new Matrix("S",basisset_->nbf(),basisset_->nbf()));
+    overlap->compute(S);
+    DuS->gemm(false,false,1.0,Du,S,0.0);
+    grid_->compute_density(DuS,"EUD_SmOL");
   }
-
-  std::pair<SharedMatrix,SharedVector> NaOa = Na_mo();
-  outfile->Printf("Na_mo: \n");
-  NaOa.first->print_out();
-
-  outfile->Printf("Oa:\n");
-  NaOa.second->print_out();
-
-  std::pair<SharedMatrix,SharedVector> NbOb = Nb_mo();
-  outfile->Printf("Nb_mo: \n");
-  NaOa.first->print_out();
-
-  outfile->Printf("Oa: \n");
-  NaOa.second->print_out();
-
-  std::pair<SharedMatrix,SharedVector> Spair = compute_EUD_S();
-  SharedVector NupS = Spair.second;
-  double num_unpaired = 0.00;
-  for(int h =0; h < NupS->nirrep(); ++h){
-    for(int i=0; i <NupS->dimpi()[h];++i){
-      double ns = NupS->get(h,i);
-      oufile->Printf("NupS[%2d][%2d] = %9.3f\n",h,i,ns);
-      num_unpaired+=ns;
-    }
-  }
-  outfile->Printf("# effectively unpaired e- = %9.3f\n",num_upaired);
-
 }
-
 void DensityCubeProperties::compute()
 {
   print_header();
+  std::stringstream ss;
+  ss << cubepath_ << "/" << "geom.xyz";
+  boost::filesystem::path data_dir(cubepath_);
+  if(not boost::filesystem::is_directory(data_dir)){
+    outfile->Printf("CubeFile output path (\"%s\") is not found. Creating it...",cubepath_.c_str());
+    auto ret = boost::filesystem::create_directory(cubepath_);
+    if(not ret){
+      throw PSIEXCEPTION(" A problem occurred, could not create path\n");
+    }
+    outfile->Printf(" Done!\n");
+  }
+  basisset_->molecule()->save_xyz_file(ss.str());
   if (tasks_.count("EUD")){
     compute_EUD("ALL");
+  }
+  if (tasks_.count("EUD_S")){
+    compute_EUD("S");
   }
 }
 }//namespace

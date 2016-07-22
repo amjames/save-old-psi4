@@ -33,7 +33,6 @@
 #include <libmints/typedefs.h>
 #include <libmints/oeprop.h>
 #include <libmints/wavefunction.h>
-#include <bin/ccenergy/ccwave.h>
 namespace boost {
   template<class T> class shared_ptr;
 }
@@ -53,71 +52,52 @@ protected:
   void print_header();
   // initialize important variables
   void common_init();
+  bool do_pop_analysis_;
 
   // Grid-based property computer
   boost::shared_ptr<CubicScalarGrid> grid_;
 
 
-  // ==>helpers that have no purpose except to prevent repeating code <==//
-
-  // Compute Dt_so and transform to ao basis for plotting
-  SharedMatrix Dt_ao();
-
-  // Transform some kind of density from mo to so basis
-  SharedMatrix Unpaired_Da_mo2so(SharedMatrix Dmo);
-  SharedMatrix Unpaired_Db_mo2so(SharedMatrix Dmo);
   // Transform some kind of density from so to ao basis
-  SharedMatrix Unpaired_Da_so2ao(SharedMatrix Dso);
-  SharedMatrix Unpaired_Db_so2ao(SharedMatrix Dso);
-  // Transform some kind of density from mo to ao basis
-  // This just chains the two above together
-  SharedMatrix Unpaired_Da_mo2ao(SharedMatrix Dmo);
-  SharedMatrix Unpaired_Db_mo2ao(SharedMatrix Dmo);
+  SharedMatrix Unpaired_D_so2ao(SharedMatrix Dso);
 
-  std::pair<SharedMatrix,SharedVector> EUD_Sa_mo();
-  std::pair<SharedMatrix,SharedVector> EUD_Sb_mo();
-  std::pair<SharedMatrix,SharedVector> EUD_Sa_so();
-  std::pair<SharedMatrix,SharedVector> EUD_Sb_so();
-  std::pair<SharedMatrix,SharedVector> EUD_Sa_ao();
-  std::pair<SharedMatrix,SharedVector> EUD_Sb_ao();
-  std::pair<SharedMatrix,SharedVector> compute_EUD_S();
+  SharedMatrix compute_EUD_S(bool mulliken);
+  SharedMatrix Du_s_mo();
+  SharedMatrix Du_s_so();
+  SharedMatrix Du_s_ao();
+  void mulliken_EUD(SharedMatrix Du_ao);
 
-  std::pair<SharedMatrix,SharedVector> EUD_Ua_mo();
-  std::pair<SharedMatrix,SharedVector> EUD_Ub_mo();
-  std::pair<SharedMatrix,SharedVector> EUD_Ua_so();
-  std::pair<SharedMatrix,SharedVector> EUD_Ub_so();
-  std::pair<SharedMatrix,SharedVector> EUD_Ua_ao();
-  std::pair<SharedMatrix,SharedVector> EUD_Ub_ao();
-  std::pair<SharedMatrix,SharedVector> compute_EUD_U();
 
-  void print_Num_UP_info(
-      std::vector<boost::tuple<int,int,double,int,int,double,double>> Upmetric,
-      std::string fdef);
+  std::string cubepath_;
+
+  void print_EUD_summary(
+      std::vector<std::tuple<double,double,double,int,int>>info
+      );
 
 public:
-    // => Constructors <= //
-
-    /// Construct a DensityCubeProperties object from a Wavefunction (possibly with symmetry in wfn)
+    // => Constructor <= //
     DensityCubeProperties(SharedWavefunction wfn);
-
     /// Common Destructor
     virtual ~DensityCubeProperties();
-
-    // => High-Level Property Computers <= //
 
     /// Compute all relevant properties from options object specifications
     void compute();
 
-    // => Low-Level Property Computers (Do not use unless you are an advanced client code) <= //
+    // => Low-Level Property Computers <= //
+    // =>         (advanced)           <= //
+    /// compute effectively unpaired electron density
 
-    // Compute a density grid task (key.cube)
-    //void compute_densities(const std::string key="D");
-    // Compute an ESP grid task (Dt.cube and ESP.cube)
-    //void compute_natural_orbitals(const std::vector<int>& indices, const std::vector<std::string>& labels, const std::string& key);
-    // Compute effectively unpaired electron density (EUD) grid task
-    //  type.cube, also prints number of effectively unpaired electrons to
-    //  output, do compute atomic contributions?
-    void compute_EUD(std::string type="U", bool atomic_contrib=false);
+    /*   available function "types":
+     *    Du_s -> type="S"-> Head-Gordon,CPL,2003 eq(18)
+     *
+     *    option:
+     *      atomic_contrib:
+     *        do compute atomic pop analysis of UP density?
+     *        This will give the number of UP electrons associated with each
+     *        atom, useful for deducing regions of possible chemical activity.
+     *        Gives an idea of how well localized a radical is for example
+     */
+    void compute_EUD(std::string type="ALL", bool atomic_contrib=true);
 
 };
 
