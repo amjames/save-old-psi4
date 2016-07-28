@@ -91,7 +91,7 @@ void DensityCubeProperties::print_header()
 void DensityCubeProperties::print_EUD_summary(
     std::vector<std::tuple<double,double,double,int,int>> info)
 {
-  std::sort(info.begin(),info.end());
+  std::sort(info.begin(),info.end(),std::greater<std::tuple<double,double,double,int,int>>());
   outfile->Printf("   Largest Contributions\n");
   outfile->Printf("   orb    NOON(a)    NOON(b)      u.p \n");
   outfile->Printf("-------------------------------------------\n");
@@ -103,24 +103,12 @@ void DensityCubeProperties::print_EUD_summary(
   {
     double nu = std::get<0>(tup);
     total_up += nu;
-    if(nu > 0.2){
-      outfile->Printf(" %2d %4s   %9.6f  %9.6f   %9.6f\n",
-        std::get<4>(tup),labels[std::get<3>(tup)],
-        std::get<1>(tup),std::get<2>(tup),nu);
-    } else {
-      double na = std::get<1>(tup);
-      double nb = std::get<2>(tup);
-      if((na+nb) > 1.8)
-        total_near_occ+=nu;
-      else
-        if((na+nb) <0.2)
-          total_near_uocc+=nu;
-    }
+    outfile->Printf(" %2d %4s   %9.6f  %9.6f   %9.6f\n",
+      std::get<4>(tup)+1,labels[std::get<3>(tup)],
+      std::get<1>(tup),std::get<2>(tup),nu);
   }
-  outfile->Printf("-------------------------------------------\n");
-  outfile->Printf(    "Total up e-             = %9.6f\n",total_up);
-  outfile->Printf(    "Nearly DOCC             = %9.6f\n",total_near_occ);
-  outfile->Printf(    "Nearly UOCC             = %9.6f\n",total_near_uocc);
+  outfile->Printf("--------------------------------------------\n");
+  outfile->Printf(    "Total up e-                      = %9.6f\n",total_up);
 }
 SharedMatrix DensityCubeProperties::Unpaired_D_so2ao(SharedMatrix Dso)
 {
